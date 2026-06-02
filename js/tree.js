@@ -550,7 +550,7 @@ export class FocusTree {
 
   _updateTrunk(p) {
     // Trunk starts appearing at 0.15, full at 0.55
-    const trunkScale = smoothstep(0.15, 0.55, p);
+    const trunkScale = smoothstep(0.05, 0.5, p);
     // Also thicken with progress
     const thickness = lerp(0.5, 1.0, smoothstep(0.25, 0.70, p));
     this.trunkGroup.scale.set(thickness, trunkScale, thickness);
@@ -566,7 +566,7 @@ export class FocusTree {
       if (appear > 0.01) {
         const swayAmount = 0.04 * appear;
         b.mesh.rotation.z =
-          b.angleZ + Math.sin(t * 1.2 + b.phaseOffset) * swayAmount;
+          b.angleZ + Math.sin(t * 2.5 + b.phaseOffset) * swayAmount;
       }
     }
   }
