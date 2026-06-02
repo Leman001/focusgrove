@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,7 @@ export class FocusTree {
     this.scene = null;
     this.camera = null;
     this.clock = new THREE.Clock();
+    this.controls = null;
     this.animId = null;
     this.resizeObs = null;
 
@@ -133,6 +135,7 @@ export class FocusTree {
   dispose() {
     if (this.animId) cancelAnimationFrame(this.animId);
     this.resizeObs?.disconnect();
+    this.controls?.dispose();
     this.renderer?.dispose();
     this.renderer?.domElement?.parentNode?.removeChild(this.renderer.domElement);
     this.scene?.traverse(o => {
@@ -176,6 +179,20 @@ export class FocusTree {
     this.camera = new THREE.PerspectiveCamera(44, w / (h || 1), 0.1, 100);
     this.camera.position.set(0, 2.5, 5.5);
     this.camera.lookAt(0, 1.2, 0);
+
+    // Orbit controls — user can rotate/zoom around the tree
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.target.set(0, 1.5, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.enablePan = false;
+    this.controls.minDistance = 3;
+    this.controls.maxDistance = 12;
+    this.controls.minPolarAngle = Math.PI * 0.1;
+    this.controls.maxPolarAngle = Math.PI * 0.48;
+    this.controls.autoRotate = true;
+    this.controls.autoRotateSpeed = 0.4;
+    this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY };
   }
 
   _buildScene() {
@@ -441,7 +458,7 @@ export class FocusTree {
       this._burst(lerp(1.0, 3.5, p));
     }
 
-    this._camUpdate(p, t);
+    this._camUpdate(p);
     this._grassUpdate(t);
     this._sproutUpdate(p, t);
     this._trunkUpdate(p);
@@ -457,14 +474,11 @@ export class FocusTree {
 
   // ── Smooth updates (no stages — everything is a continuous function of p) ─
 
-  _camUpdate(p, t) {
-    const angle = t * 0.12;
-    // Continuous zoom: close at p=0, pulls back as tree grows
-    const dist = lerp(3.8, 6.5, p);
-    const camY = lerp(1.8, 4.2, p);
-    const lookY = lerp(0.4, 2.2, p);
-    this.camera.position.set(Math.sin(angle) * dist, camY, Math.cos(angle) * dist);
-    this.camera.lookAt(0, lookY, 0);
+  _camUpdate(p) {
+    // Smoothly shift orbit target upward as tree grows
+    const lookY = lerp(0.6, 1.8, p);
+    this.controls.target.set(0, lookY, 0);
+    this.controls.update();
   }
 
   _grassUpdate(t) {
