@@ -1,5 +1,6 @@
 // FocusGrove — Timer Module
 // Focus session timer with countdown/countup modes
+// FIXED: Resume timing issue, better pause/resume accuracy
 
 export class FocusTimer {
   /**
@@ -23,6 +24,7 @@ export class FocusTimer {
     this._intervalId = null;
     this._startTime = null;
     this._pauseOffset = 0;
+    this._pauseTime = 0;     // NEW: Track when pause started
   }
 
   start() {
@@ -31,6 +33,7 @@ export class FocusTimer {
     this.paused = false;
     this._startTime = Date.now();
     this._pauseOffset = 0;
+    this._pauseTime = 0;
     this.elapsed = 0;
     this._tick();
     this._intervalId = setInterval(() => this._tick(), 1000);
@@ -39,6 +42,7 @@ export class FocusTimer {
   pause() {
     if (!this.running || this.paused) return;
     this.paused = true;
+    this._pauseTime = Date.now();  // NEW: Record pause time
     this._pauseOffset = this.elapsed;
     clearInterval(this._intervalId);
     this._intervalId = null;
@@ -48,7 +52,9 @@ export class FocusTimer {
   resume() {
     if (!this.running || !this.paused) return;
     this.paused = false;
-    this._startTime = Date.now();
+    // FIX: Adjust start time to account for pause duration
+    const pauseDuration = (Date.now() - this._pauseTime) / 1000;
+    this._startTime = Date.now() - (this._pauseOffset * 1000);
     this._intervalId = setInterval(() => this._tick(), 1000);
   }
 
