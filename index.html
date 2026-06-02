@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="FocusGrove — приложение для фокусировки и продуктивности. Выращивай дерево, пока концентрируешься.">
+  <meta name="theme-color" content="#0a0f1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>FocusGrove — Фокус и награды</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- ========== DASHBOARD ========== -->
+    <section id="screen-dashboard" class="screen active">
+      <header class="screen-header">
+        <div class="logo">
+          <span class="logo-icon">🌳</span>
+          <span class="logo-text">FocusGrove</span>
+        </div>
+        <button id="btn-lang" class="btn-icon" title="Switch language">
+          <span id="lang-label">RU</span>
+        </button>
+      </header>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">⏱</div>
+          <span class="stat-value" id="stat-total-hours">0</span>
+          <span class="stat-label" data-i18n="totalHours">Всего часов</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔥</div>
+          <span class="stat-value" id="stat-streak">0</span>
+          <span class="stat-label" data-i18n="streak">Дней подряд</span>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-icon">💎</div>
+          <span class="stat-value" id="stat-balance">0</span>
+          <span class="stat-label" data-i18n="balanceMin">Баланс (мин)</span>
+        </div>
+      </div>
+
+      <div class="focus-start-section">
+        <p class="section-subtitle" data-i18n="chooseDuration">Выбери длительность сессии</p>
+        <div class="duration-selector">
+          <button class="duration-btn" data-duration="25">25</button>
+          <button class="duration-btn active" data-duration="45">45</button>
+          <button class="duration-btn" data-duration="60">60</button>
+          <div class="duration-custom-wrap">
+            <input type="number" id="duration-custom" class="duration-custom" placeholder="..." min="5" max="180" aria-label="Custom duration">
+            <span class="duration-custom-label" data-i18n="min">мин</span>
+          </div>
+        </div>
+        <button id="btn-start-focus" class="btn-primary btn-glow">
+          <span class="btn-icon-inner">▶</span>
+          <span data-i18n="startFocus">Начать фокус</span>
+        </button>
+      </div>
+
+      <div class="rewards-preview">
+        <h2 data-i18n="nearestRewards">Ближайшие награды</h2>
+        <div id="rewards-preview-list" class="rewards-mini-list">
+          <!-- Dynamically filled -->
+        </div>
+        <p class="empty-hint" id="no-rewards-hint" data-i18n="noRewardsHint">Добавь награды, чтобы видеть прогресс</p>
+      </div>
+    </section>
+
+    <!-- ========== FOCUS MODE ========== -->
+    <section id="screen-focus" class="screen">
+      <div class="focus-header">
+        <div class="timer-display">
+          <span id="timer-value" class="timer-value">00:00</span>
+          <button id="btn-timer-mode" class="btn-tiny" title="Toggle timer mode">
+            <span id="timer-mode-icon">↓</span>
+          </button>
+        </div>
+        <div class="session-target">
+          <span data-i18n="target">Цель:</span>
+          <span id="session-target-value">45 мин</span>
+        </div>
+      </div>
+
+      <div id="tree-container" class="tree-container">
+        <!-- Three.js renders here -->
+        <div id="tree-loading" class="tree-loading">
+          <div class="loader"></div>
+          <span data-i18n="loadingTree">Загрузка...</span>
+        </div>
+      </div>
+
+      <div class="focus-footer">
+        <div class="focus-progress">
+          <div class="progress-bar">
+            <div id="focus-progress-fill" class="progress-fill"></div>
+          </div>
+          <span id="focus-progress-text" class="progress-text">0%</span>
+        </div>
+        <button id="btn-end-focus" class="btn-secondary">
+          <span data-i18n="endSession">Завершить раньше</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ========== REWARDS ========== -->
+    <section id="screen-rewards" class="screen">
+      <header class="screen-header">
+        <h1 data-i18n="rewards">Награды</h1>
+        <div class="balance-badge">
+          <span class="balance-icon">💎</span>
+          <span id="rewards-balance">0</span>
+          <span data-i18n="min">мин</span>
+        </div>
+      </header>
+
+      <button id="btn-add-reward" class="btn-primary btn-add">
+        <span>+</span>
+        <span data-i18n="addReward">Добавить награду</span>
+      </button>
+
+      <div id="rewards-list" class="rewards-grid">
+        <!-- Dynamic reward cards -->
+      </div>
+
+      <div class="rewards-history-section">
+        <h2 data-i18n="claimedHistory">Полученные награды</h2>
+        <div id="rewards-history" class="history-list">
+          <!-- Dynamic -->
+        </div>
+        <p class="empty-hint" id="no-history-hint" data-i18n="noHistoryHint">История пока пуста</p>
+      </div>
+    </section>
+
+    <!-- ========== SETTINGS ========== -->
+    <section id="screen-settings" class="screen">
+      <header class="screen-header">
+        <h1 data-i18n="settings">Настройки</h1>
+      </header>
+
+      <div class="settings-group">
+        <div class="setting-item">
+          <label data-i18n="defaultDuration">Длительность по умолчанию</label>
+          <select id="setting-duration" class="select-styled">
+            <option value="25">25 мин</option>
+            <option value="45" selected>45 мин</option>
+            <option value="60">60 мин</option>
+            <option value="90">90 мин</option>
+            <option value="120">120 мин</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <label data-i18n="defaultTimerMode">Режим таймера по умолчанию</label>
+          <div class="toggle-group" id="toggle-timer-mode">
+            <button class="toggle-btn active" data-mode="countdown" data-i18n="countdown">Обратный ⏬</button>
+            <button class="toggle-btn" data-mode="countup" data-i18n="countup">Прямой ⏫</button>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label data-i18n="language">Язык / Language</label>
+          <div class="toggle-group" id="toggle-language">
+            <button class="toggle-btn active" data-lang="ru">Русский</button>
+            <button class="toggle-btn" data-lang="en">English</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group danger-zone">
+        <h3 data-i18n="dangerZone">Опасная зона</h3>
+        <button id="btn-reset-data" class="btn-danger">
+          <span data-i18n="resetAllData">🗑 Сбросить все данные</span>
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ========== BOTTOM NAVIGATION ========== -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-screen="dashboard" id="nav-dashboard">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span data-i18n="home">Главная</span>
+    </button>
+    <button class="nav-btn" data-screen="focus" id="nav-focus">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <circle cx="12" cy="12" r="6"/>
+        <circle cx="12" cy="12" r="2"/>
+      </svg>
+      <span data-i18n="focus">Фокус</span>
+    </button>
+    <button class="nav-btn" data-screen="rewards" id="nav-rewards">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 9 7 12 7s5-3 7.5-3a2.5 2.5 0 0 1 0 5H18"/>
+        <path d="M6 9v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9"/>
+        <line x1="12" y1="7" x2="12" y2="21"/>
+      </svg>
+      <span data-i18n="rewards">Награды</span>
+    </button>
+    <button class="nav-btn" data-screen="settings" id="nav-settings">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      <span data-i18n="settings">Настройки</span>
+    </button>
+  </nav>
+
+  <!-- ========== MODALS ========== -->
+
+  <!-- Warning Modal (first tab leave) -->
+  <div id="modal-warning" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon warning">⚠️</div>
+      <h2 data-i18n="warningTitle">Внимание!</h2>
+      <p data-i18n="warningText">Ты свернул приложение. В следующий раз прогресс сессии будет обнулён.</p>
+      <button class="btn-primary modal-btn" id="btn-warning-ok" data-i18n="understood">Понял, продолжаю</button>
+    </div>
+  </div>
+
+  <!-- Session Reset Modal (second tab leave) -->
+  <div id="modal-reset" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon danger">💔</div>
+      <h2 data-i18n="resetTitle">Фокус нарушен</h2>
+      <p data-i18n="resetText">Прогресс этой сессии обнулён. Попробуй ещё раз — ты справишься!</p>
+      <button class="btn-primary modal-btn" id="btn-reset-ok" data-i18n="tryAgain">Попробую ещё раз</button>
+    </div>
+  </div>
+
+  <!-- Add/Edit Reward Modal -->
+  <div id="modal-reward" class="modal-overlay">
+    <div class="modal-card modal-form">
+      <h2 id="modal-reward-title" data-i18n="newReward">Новая награда</h2>
+      <div class="form-group">
+        <label data-i18n="rewardEmoji">Иконка</label>
+        <div class="emoji-picker">
+          <button class="emoji-btn active" data-emoji="🎬">🎬</button>
+          <button class="emoji-btn" data-emoji="📱">📱</button>
+          <button class="emoji-btn" data-emoji="🍕">🍕</button>
+          <button class="emoji-btn" data-emoji="🎮">🎮</button>
+          <button class="emoji-btn" data-emoji="🛍️">🛍️</button>
+          <button class="emoji-btn" data-emoji="☕">☕</button>
+          <button class="emoji-btn" data-emoji="🎵">🎵</button>
+          <button class="emoji-btn" data-emoji="🏖️">🏖️</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="reward-name" data-i18n="rewardName">Название</label>
+        <input type="text" id="reward-name" placeholder="5 мин рилсов" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="reward-cost" data-i18n="rewardCost">Стоимость (минуты фокуса)</label>
+        <input type="number" id="reward-cost" placeholder="60" min="1" max="99999">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btn-reward-cancel" data-i18n="cancel">Отмена</button>
+        <button class="btn-primary" id="btn-reward-save" data-i18n="save">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Celebration Modal -->
+  <div id="modal-celebration" class="modal-overlay">
+    <div class="modal-card celebration">
+      <div class="confetti-container" id="confetti"></div>
+      <div class="modal-icon success">🎉</div>
+      <h2 data-i18n="congratulations">Поздравляем!</h2>
+      <p id="celebration-text"></p>
+      <button class="btn-primary modal-btn" id="btn-celebration-ok" data-i18n="awesome">Круто!</button>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Modal -->
+  <div id="modal-confirm" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon warning">🗑</div>
+      <h2 id="confirm-title" data-i18n="confirmDelete">Подтверждение</h2>
+      <p id="confirm-text" data-i18n="confirmDeleteText">Вы уверены? Это действие нельзя отменить.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btn-confirm-cancel" data-i18n="cancel">Отмена</button>
+        <button class="btn-danger" id="btn-confirm-ok" data-i18n="delete">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Complete Modal -->
+  <div id="modal-complete" class="modal-overlay">
+    <div class="modal-card celebration">
+      <div class="modal-icon success">🌳</div>
+      <h2 data-i18n="sessionComplete">Сессия завершена!</h2>
+      <p id="complete-text"></p>
+      <div class="complete-stats">
+        <div class="complete-stat">
+          <span class="complete-stat-value" id="complete-minutes">0</span>
+          <span class="complete-stat-label" data-i18n="minutesEarned">минут заработано</span>
+        </div>
+      </div>
+      <button class="btn-primary modal-btn btn-glow" id="btn-complete-ok" data-i18n="great">Отлично!</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
