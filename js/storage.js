@@ -34,7 +34,7 @@ function generateId() {
 // ---- Settings ----
 
 const DEFAULT_SETTINGS = {
-  language: 'ru',
+  language: 'en',
   defaultDuration: 45,
   timerMode: 'countdown', // 'countdown' | 'countup'
 };

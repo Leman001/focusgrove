@@ -407,6 +407,7 @@ body {
 #screen-focus {
   padding-bottom: 0;
   height: 100vh;
+  justify-content: space-between;
 }
 
 .focus-top {
@@ -436,13 +437,11 @@ body {
 }
 
 .tree-container {
-  flex: 1;
-  position: relative;
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
+  height: 320px;
+  position: relative;
+  margin: auto 0; /* center vertically in remaining space */
+  overflow: hidden;
 }
 .tree-loading {
   display: flex;
@@ -907,3 +906,61 @@ body {
 
 /* Reward mini (dashboard preview — hidden but kept for JS compat) */
 .reward-mini { display: none; }
+
+/* Reward card actions (edit + delete) */
+.reward-card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+}
+.reward-edit-btn, .reward-delete-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: var(--card-2);
+  color: var(--ink-mute);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  transition: background .15s, color .15s;
+}
+.reward-edit-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.reward-delete-btn:hover { background: rgba(229,72,77,.12); color: var(--danger); }
+
+/* Reward placeholder card */
+.reward-card-placeholder {
+  grid-column: 1 / -1;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border: 2px dashed var(--line-2);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.reward-card-placeholder:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Onboarding hint */
+.onboarding-hint {
+  animation: hint-fade 2s ease-in-out infinite alternate;
+}
+@keyframes hint-fade {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Dial center transition for rotation feedback */
+.dial-center {
+  transition: transform 0.08s ease-out;
+}

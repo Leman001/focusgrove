@@ -135,7 +135,7 @@ const translations = {
   }
 };
 
-let currentLang = 'ru';
+let currentLang = 'en';
 
 export function setLanguage(lang) {
   currentLang = lang;
@@ -147,7 +147,7 @@ export function getLanguage() {
 }
 
 export function t(key) {
-  return translations[currentLang]?.[key] || translations['ru']?.[key] || key;
+  return translations[currentLang]?.[key] || translations['en']?.[key] || key;
 }
 
 export function applyTranslations() {

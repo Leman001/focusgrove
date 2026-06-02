@@ -81,21 +81,20 @@ export class FocusTree {
 
     // Camera
     const { clientWidth: w, clientHeight: h } = this.container;
-    this.camera = new THREE.PerspectiveCamera(42, w / (h || 1), 0.1, 100);
-    this.camera.position.set(0, 3.2, 7);
-    this.camera.lookAt(0, 2.2, 0);
+    this.camera = new THREE.PerspectiveCamera(55, w / (h || 1), 0.1, 100);
+    this.camera.position.set(0, 2.5, 4.0);
+    this.camera.lookAt(0, 0.8, 0);
 
     // Orbit controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping   = true;
     this.controls.dampingFactor   = 0.08;
-    this.controls.target.set(0, 2.2, 0);
+    this.controls.target.set(0, 0.8, 0);
     this.controls.minDistance     = 4;
     this.controls.maxDistance     = 12;
     this.controls.maxPolarAngle   = Math.PI * 0.48;
     this.controls.minPolarAngle   = Math.PI * 0.12;
-    this.controls.autoRotate      = true;
-    this.controls.autoRotateSpeed = 0.55;
+    this.controls.autoRotate      = false; // we handle rotation in _updateTree
     this.controls.enablePan       = false;
 
     this._buildGround();
@@ -138,15 +137,63 @@ export class FocusTree {
     const mound = new THREE.Mesh(mGeo, new THREE.MeshLambertMaterial({ color: C_MOUND, flatShading: true }));
     mound.scale.set(1, 0.42, 1);
     this.scene.add(mound);
+
+    // Grass tufts (small cones scattered on ground)
+    const grassMat = new THREE.MeshLambertMaterial({ color: 0x6db37a, flatShading: true });
+    const grassPositions = [
+      [0.9, 0, 0.6], [-0.8, 0, 0.9], [1.2, 0, -0.4], [-1.0, 0, -0.7],
+      [0.4, 0, 1.3], [-1.4, 0, 0.2], [1.5, 0, 0.1], [-0.4, 0, -1.2],
+      [0.6, 0, -1.0], [-1.2, 0, -0.3], [1.8, 0, -0.8], [-0.2, 0, 1.6],
+    ];
+    for (const [x, , z] of grassPositions) {
+      const gGeo2 = new THREE.ConeGeometry(0.045, 0.2, 4);
+      const tuft = new THREE.Mesh(gGeo2, grassMat);
+      tuft.position.set(x, 0.1, z);
+      tuft.rotation.z = (Math.random() - 0.5) * 0.25;
+      tuft.scale.y = 0.7 + Math.random() * 0.6;
+      this.scene.add(tuft);
+    }
+
+    // Small rocks
+    const rockMat = new THREE.MeshLambertMaterial({ color: 0xb8a88a, flatShading: true });
+    const rockPositions = [
+      [1.4, 0.06, 0.8, 0.12], [-1.6, 0.05, -0.5, 0.1], [0.7, 0.07, -1.4, 0.14],
+      [-0.6, 0.04, 1.5, 0.08], [2.0, 0.05, -0.2, 0.09],
+    ];
+    for (const [x, y, z, s] of rockPositions) {
+      const rGeo = jitter(new THREE.IcosahedronGeometry(s, 0), 0.02);
+      const rock = new THREE.Mesh(rGeo, rockMat);
+      rock.position.set(x, y, z);
+      rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      rock.scale.y = 0.6;
+      this.scene.add(rock);
+    }
   }
 
   _buildTree() {
-    // ── Sprout ──
-    const sGeo = jitter(new THREE.ConeGeometry(0.055, 0.3, 5), 0.01);
-    this.sprout = new THREE.Mesh(sGeo, new THREE.MeshLambertMaterial({ color: 0x5cb874, flatShading: true }));
-    this.sprout.position.y = 0.15;
-    this.sprout.scale.setScalar(0);
-    this.scene.add(this.sprout);
+    // ── Sprout (2 leaves + stem) ──
+    this.sproutGroup = new THREE.Group();
+    const stemGeo = jitter(new THREE.CylinderGeometry(0.03, 0.045, 0.55, 5), 0.005);
+    const stemMat = new THREE.MeshLambertMaterial({ color: 0x5cb874, flatShading: true });
+    const stem = new THREE.Mesh(stemGeo, stemMat);
+    stem.position.y = 0.28;
+    this.sproutGroup.add(stem);
+
+    // Two small leaves
+    const leafGeo = jitter(new THREE.ConeGeometry(0.12, 0.28, 4), 0.01);
+    const leafMat = new THREE.MeshLambertMaterial({ color: 0x6ec97e, flatShading: true });
+    const leaf1 = new THREE.Mesh(leafGeo, leafMat);
+    leaf1.position.set(0.09, 0.50, 0);
+    leaf1.rotation.z = -0.4;
+    this.sproutGroup.add(leaf1);
+    const leaf2 = new THREE.Mesh(leafGeo, leafMat);
+    leaf2.position.set(-0.09, 0.46, 0);
+    leaf2.rotation.z = 0.4;
+    this.sproutGroup.add(leaf2);
+
+    this.sproutGroup.scale.setScalar(0);
+    this.scene.add(this.sproutGroup);
+    this.sprout = this.sproutGroup; // alias for update code
 
     // ── Trunk — 7-sided tapered low-poly cylinder ──
     const tGeo = jitter(new THREE.CylinderGeometry(0.1, 0.24, 2.4, 7, 2), 0.018);
@@ -217,15 +264,30 @@ export class FocusTree {
     const p = this._currentProgress;
 
     this._updateTree(p, t);
-    this.controls.update();
+    // Don't call controls.update() — we position camera manually in _updateTree
     this.renderer.render(this.scene, this.camera);
   }
 
   _updateTree(p, t) {
-    // Sprout (0 → 0.25)
-    const sS = smoothstep(0.01, 0.09, p) * (1 - smoothstep(0.16, 0.30, p));
+    // ── Dynamic camera: close-up at start, pulls back as tree grows ──
+    const camDist = lerp(2.8, 6.0, smoothstep(0.0, 0.5, p));
+    const camHeight = lerp(3.5, 5.0, smoothstep(0.0, 0.5, p));
+    const lookY = lerp(0.0, 1.8, smoothstep(0.0, 0.5, p));
+    // Auto-rotate angle
+    const autoAngle = t * 0.12;
+    this.camera.position.set(
+      Math.sin(autoAngle) * camDist,
+      camHeight,
+      Math.cos(autoAngle) * camDist
+    );
+    this.camera.lookAt(0, lookY, 0);
+
+    // Sprout: visible immediately, fades as trunk grows
+    const sAppear = smoothstep(0.0, 0.04, p);
+    const sFade = 1 - smoothstep(0.20, 0.38, p);
+    const sS = Math.max(2.0, 2.0 * sAppear) * sFade;
     this.sprout.scale.setScalar(sS);
-    this.sprout.rotation.z = Math.sin(t * 1.9) * 0.09 * sS;
+    this.sprout.rotation.z = Math.sin(t * 1.9) * 0.08 * sS;
 
     // Trunk (0.06 → 0.50)
     const tS = smoothstep(0.06, 0.50, p);

@@ -29,8 +29,16 @@ export function renderRewardsList(container) {
   const rewards = Storage.getRewards();
   const balance = Storage.getAvailableBalance();
 
+  // Placeholder card when empty
   if (rewards.length === 0) {
-    container.innerHTML = '';
+    container.innerHTML = `
+      <div class="reward-card-placeholder" id="reward-placeholder">
+        <div style="font-size:32px;margin-bottom:8px;">🎁</div>
+        <div style="font-size:15px;font-weight:600;color:var(--ink-soft);">Add your first reward</div>
+        <div style="font-size:13px;color:var(--ink-mute);margin-top:4px;">Earn focus minutes, then spend them on treats</div>
+      </div>
+    `;
+    container.querySelector('#reward-placeholder')?.addEventListener('click', () => openAddRewardModal());
     return;
   }
 
@@ -41,7 +49,10 @@ export function renderRewardsList(container) {
 
     return `
       <div class="reward-card fg-card" data-id="${reward.id}">
-        <button class="reward-delete-btn" data-id="${reward.id}" title="Delete">✕</button>
+        <div class="reward-card-actions">
+          <button class="reward-edit-btn" data-id="${reward.id}" title="Edit">✎</button>
+          <button class="reward-delete-btn" data-id="${reward.id}" title="Delete">✕</button>
+        </div>
         <div class="rico" style="--tint:${tint};">${reward.emoji}</div>
         <div class="reward-name">${escapeHtml(reward.name)}</div>
         <div class="reward-card-footer">
@@ -60,6 +71,13 @@ export function renderRewardsList(container) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       handleClaimReward(btn.dataset.id);
+    });
+  });
+
+  container.querySelectorAll('.reward-edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditRewardModal(btn.dataset.id);
     });
   });
 
@@ -236,20 +254,28 @@ export function cancelDelete() {
 
 let editingRewardId = null;
 
-export function openAddRewardModal() {
-  editingRewardId = null;
+export function openAddRewardModal(editReward = null) {
+  editingRewardId = editReward ? editReward.id : null;
   const title = document.getElementById('modal-reward-title');
-  if (title) title.textContent = t('newReward');
+  if (title) title.textContent = editReward ? t('editReward') : t('newReward');
   
-  document.getElementById('reward-name').value = '';
-  document.getElementById('reward-cost').value = '';
-  
-  // Reset emoji selection
+  document.getElementById('reward-name').value = editReward ? editReward.name : '';
+  document.getElementById('reward-cost').value = editReward ? editReward.cost : '';
+
+  // Set emoji selection
+  const targetEmoji = editReward ? editReward.emoji : null;
   document.querySelectorAll('.emoji-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', i === 0);
+    btn.classList.toggle('active', targetEmoji ? btn.dataset.emoji === targetEmoji : i === 0);
   });
-  
+
   document.getElementById('modal-reward').classList.add('active');
+}
+
+// ---- Edit Reward ----
+
+export function openEditRewardModal(id) {
+  const reward = Storage.getRewards().find(r => r.id === id);
+  if (reward) openAddRewardModal(reward);
 }
 
 export function saveRewardFromModal() {

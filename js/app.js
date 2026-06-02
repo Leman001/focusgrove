@@ -37,6 +37,7 @@ async function initApp() {
   initFocusStart();
   initDialRotation();
   initModals();
+  initOnboarding();
 
   Rewards.setBalanceChangeCallback(() => {
     updateDashboardStats();
@@ -99,7 +100,10 @@ function switchScreen(screenId) {
     updateDashboardStats();
   } else if (screenId === 'settings') {
     const streakLine = document.getElementById('settings-streak-line');
-    if (streakLine) streakLine.textContent = `Focused ${Storage.getStreak()} days in a row`;
+    if (streakLine) {
+      const s = Storage.getStreak();
+      streakLine.textContent = `Focused ${s} ${s === 1 ? 'day' : 'days'} in a row`;
+    }
   }
 }
 
@@ -140,6 +144,8 @@ function drawDialTicks(el, frac) {
   svg.innerHTML = out;
 }
 
+let _lastDialMinutes = -1;
+
 function updateDialDisplay(minutes) {
   const dialDisplay = document.getElementById('dial-display');
   const chipLabel = document.getElementById('dial-chip-label');
@@ -147,6 +153,21 @@ function updateDialDisplay(minutes) {
   if (dialDisplay) dialDisplay.textContent = minutes;
   if (chipLabel) chipLabel.textContent = `${String(minutes).padStart(2, '0')}:00`;
   if (dialEl) drawDialTicks(dialEl, Math.min(1, minutes / 120));
+
+  // Visual feedback: pulse the center number when value changes during drag
+  if (minutes !== _lastDialMinutes && _lastDialMinutes !== -1) {
+    const center = dialEl?.querySelector('.dial-center');
+    if (center) {
+      center.style.transition = 'transform 0.08s ease-out';
+      center.style.transform = 'scale(1.06)';
+      setTimeout(() => {
+        center.style.transform = 'scale(1)';
+      }, 80);
+    }
+    // Haptic feedback on supported devices
+    if (navigator.vibrate) navigator.vibrate(4);
+  }
+  _lastDialMinutes = minutes;
 }
 
 // ---- Focus Start ----
@@ -396,6 +417,26 @@ function exitFocusMode() {
   if (treeInstance) treeInstance.setProgress(0);
   updateDashboardStats();
   switchScreen('dashboard');
+}
+
+// ---- Onboarding ----
+
+function initOnboarding() {
+  const sessions = Storage.getSessions();
+  if (sessions.length > 0) return; // not first time
+
+  // Replace "Ready to focus?" with welcome message
+  const h1 = document.querySelector('.dash-header .fg-h1');
+  if (h1) h1.textContent = 'Welcome to FocusGrove!';
+
+  // Show a subtle hint below the dial
+  const dialHero = document.querySelector('.dial-hero');
+  if (dialHero) {
+    const hint = document.createElement('div');
+    hint.className = 'onboarding-hint';
+    hint.innerHTML = '<span style="font-size:14px;color:var(--ink-soft);text-align:center;line-height:1.4;">Rotate the dial to set your time<br>then tap <b>Start Focus</b></span>';
+    dialHero.appendChild(hint);
+  }
 }
 
 // ---- Settings & Modals ----
