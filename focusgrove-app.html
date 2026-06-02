@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusGrove — Focus App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   FocusGrove — design tokens  (edit these to re-skin the app)
+   ============================================================ */
+:root{
+  --bg:#efece6; --bg-2:#e8e4dc; --card:#fbfaf7; --card-2:#f4f2ec; --card-hi:#fff;
+  --ink:#1a1916; --ink-soft:#6f6b62; --ink-mute:#a39e93; --ink-faint:#c4bfb4;
+  --accent:#ff6a2b; --accent-2:#ff8a4c; --accent-deep:#e8531a; --accent-soft:#ffe3d2;
+  --c-green:#3fb37a; --c-blue:#4f7dff; --c-yellow:#f4b740; --c-violet:#8b7bff;
+  --danger:#e5484d;
+  --line:rgba(26,25,22,.07); --line-2:rgba(26,25,22,.12);
+  --r-pill:999px; --r-lg:30px; --r-md:22px; --r-sm:16px;
+  --sh-raise:10px 10px 26px rgba(176,168,153,.55),-10px -10px 26px rgba(255,255,255,.92);
+  --sh-raise-sm:5px 5px 14px rgba(176,168,153,.45),-5px -5px 14px rgba(255,255,255,.9);
+  --sh-inset:inset 4px 4px 10px rgba(176,168,153,.5),inset -4px -4px 10px rgba(255,255,255,.95);
+  --sh-card:0 14px 34px rgba(120,112,96,.13),0 2px 6px rgba(120,112,96,.06);
+  --sh-pill:0 2px 5px rgba(60,55,45,.07),0 10px 22px rgba(120,112,96,.16);
+  --sh-ink:0 8px 24px rgba(26,25,22,.30),0 2px 6px rgba(26,25,22,.18);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:#f5f5f5;font-family:'Space Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--ink);}
+
+/* main container ------------------------------------------------ */
+.app-container{display:flex;height:100vh;background:#f5f5f5;}
+.phone-frame{width:384px;height:832px;border-radius:52px;position:relative;
+  background:linear-gradient(150deg,#36332e,#17150f);padding:11px;margin:auto;
+  box-shadow:0 50px 90px rgba(40,36,28,.4),0 0 0 1px rgba(0,0,0,.3),inset 0 0 0 2px rgba(255,255,255,.06);}
+.screen{width:100%;height:100%;border-radius:42px;overflow:hidden;position:relative;background:var(--bg);display:flex;flex-direction:column;}
+.screen::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(120% 80% at 50% -10%,rgba(255,255,255,.7),transparent 55%),
+             radial-gradient(140% 100% at 50% 120%,rgba(214,205,190,.4),transparent 60%);}
+.island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:116px;height:33px;border-radius:20px;background:#0c0b08;z-index:30;}
+.statusbar{display:flex;align-items:center;justify-content:space-between;padding:14px 30px 4px;position:relative;z-index:5;}
+.statusbar .time{font-size:16px;font-weight:600;letter-spacing:-.02em;}
+.statusbar svg{display:block;}
+.content{position:relative;z-index:2;height:calc(100% - 44px);padding:6px 22px 0;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-track{background:transparent;}
+.content::-webkit-scrollbar-thumb{background:var(--ink-faint);border-radius:2px;}
+
+/* primitives --------------------------------------------------- */
+.card{background:var(--card);border-radius:var(--r-md);box-shadow:var(--sh-card);border:1px solid rgba(255,255,255,.6);}
+.eyebrow{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);}
+.label{font-size:13px;color:var(--ink-soft);}
+.h1{font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.02;}
+.h2{font-size:22px;font-weight:600;letter-spacing:-.02em;}
+.num{font-feature-settings:"tnum" 1;letter-spacing:-.03em;}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:62px;background:var(--ink);color:#fff;border:none;border-radius:var(--r-pill);font:600 18px/1 'Space Grotesk',sans-serif;letter-spacing:-.01em;box-shadow:var(--sh-ink);cursor:pointer;transition:all .2s ease;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(26,25,22,.35);}
+.btn:active{transform:translateY(0);}
+.btn--ghost{background:var(--card);color:var(--ink-soft);box-shadow:var(--sh-card);}
+.btn--ghost:hover{background:var(--card-hi);}
+.btn--accent{background:var(--accent);box-shadow:0 8px 22px rgba(255,106,43,.4),0 2px 6px rgba(255,106,43,.25);}
+.btn--accent:hover{background:var(--accent-2);}
+.chip{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 18px;background:var(--card-hi);border-radius:var(--r-pill);box-shadow:var(--sh-pill);font-size:15px;font-weight:500;cursor:pointer;transition:all .2s ease;}
+.chip:hover{box-shadow:0 4px 12px rgba(120,112,96,.2);}
+.chip .chev{color:var(--ink-mute);display:flex;}
+.avatar{border-radius:50%;padding:2.5px;background:var(--accent);box-shadow:var(--sh-pill);}
+.avatar i{display:flex;width:100%;height:100%;border-radius:50%;align-items:flex-end;justify-content:center;overflow:hidden;
+  background:radial-gradient(120% 120% at 30% 20%,#ffd8a8,#ff9d5c 45%,#e8531a);}
+
+/* floating nav ------------------------------------------------- */
+.nav{position:absolute;left:50%;transform:translateX(-50%);bottom:26px;z-index:40;display:flex;gap:4px;padding:7px;
+  background:rgba(251,250,247,.82);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);
+  border-radius:var(--r-pill);box-shadow:var(--sh-pill);border:1px solid rgba(255,255,255,.7);}
+.nav__item{width:52px;height:46px;border-radius:var(--r-pill);display:flex;align-items:center;justify-content:center;color:var(--ink-mute);cursor:pointer;transition:all .2s ease;}
+.nav__item:hover{color:var(--ink);}
+.nav__item.active{background:var(--ink);color:#fff;box-shadow:var(--sh-ink);width:60px;}
+.nav__item.active.accent{background:var(--accent);box-shadow:0 8px 20px rgba(255,106,43,.4);}
+
+/* dial --------------------------------------------------------- */
+.dial{position:relative;display:flex;align-items:center;justify-content:center;}
+.dial .plate{position:absolute;inset:0;border-radius:50%;background:radial-gradient(130% 130% at 32% 28%,#fff,#efece6 78%);box-shadow:var(--sh-raise);}
+.dial .disc{position:absolute;width:84%;height:84%;border-radius:50%;background:radial-gradient(120% 120% at 35% 30%,#fff,#f4f1ea);
+  box-shadow:inset 6px 6px 16px rgba(176,168,153,.4),inset -6px -6px 16px rgba(255,255,255,.9);}
+.dial .ticks{position:absolute;width:78%;height:78%;}
+.dial .center{position:relative;z-index:2;text-align:center;}
+.dial .center .big{font-weight:600;color:var(--ink);}
+.dial .center .sub{color:var(--ink-mute);margin-top:4px;}
+
+/* toggle / segmented ------------------------------------------- */
+.seg{display:inline-flex;padding:4px;border-radius:999px;background:var(--card-2);box-shadow:var(--sh-inset);}
+.seg span{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;color:var(--ink-mute);cursor:pointer;transition:all .2s ease;}
+.seg span.on{background:var(--card-hi);color:var(--ink);box-shadow:var(--sh-pill);}
+.toggle{width:50px;height:30px;border-radius:999px;padding:3px;display:flex;cursor:pointer;transition:all .2s ease;}
+.toggle.on{background:var(--accent);justify-content:flex-end;box-shadow:inset 0 1px 3px rgba(0,0,0,.15);}
+.toggle.off{background:#d8d3c8;justify-content:flex-start;box-shadow:var(--sh-inset);}
+.toggle b{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);}
+
+/* progress bar ------------------------------------------------- */
+.track{height:10px;border-radius:999px;background:var(--card-2);box-shadow:var(--sh-inset);overflow:hidden;}
+.track i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .1s linear;}
+
+/* rows --------------------------------------------------------- */
+.srow{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .2s ease;}
+.srow:hover{background:rgba(0,0,0,.02);}
+.srow:last-child{border-bottom:none;}
+.srow .ic{width:34px;height:34px;border-radius:10px;background:var(--card-2);display:flex;align-items:center;justify-content:center;color:var(--ink-soft);}
+.srow .nm{flex:1;font-size:15px;font-weight:500;}
+.srow .val{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--ink-soft);}
+.srow .val .chev{color:var(--ink-faint);display:flex;}
+.glabel{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin:22px 4px 10px;}
+
+/* utilities ---------------------------------------------------- */
+.row{display:flex;}
+.between{justify-content:space-between;}
+.center-x{align-items:center;}
+.grow{flex:1;}
+.mt-auto{margin-top:auto;}
+.accent{color:var(--accent);}
+.hidden{display:none !important;}
+
+/* reward icon + claim button */
+.rico{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;
+  background:radial-gradient(120% 120% at 35% 28%,#fff,var(--tint));box-shadow:var(--sh-raise-sm);}
+.claim{border:none;cursor:pointer;height:34px;padding:0 16px;border-radius:999px;font:600 13px/1 'Space Grotesk',sans-serif;
+  background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(255,106,43,.35);transition:all .2s ease;}
+.claim:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(255,106,43,.45);}
+.claim.locked{background:var(--card-2);color:var(--ink-mute);box-shadow:var(--sh-inset);cursor:not-allowed;}
+.claim.locked:hover{transform:none;}
+
+/* floating add button */
+.fab{position:absolute;right:26px;bottom:96px;width:56px;height:56px;border-radius:50%;z-index:39;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-ink);cursor:pointer;border:none;transition:all .2s ease;}
+.fab:hover{transform:scale(1.1);}
+.fab:active{transform:scale(0.95);}
+
+/* modal/dialog */
+.modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;border-radius:42px;}
+.modal.active{display:flex;}
+.modal-content{background:var(--card);border-radius:var(--r-md);padding:24px;max-width:90%;box-shadow:var(--sh-card);max-height:80vh;overflow-y:auto;}
+.modal-close{position:absolute;top:20px;right:20px;width:32px;height:32px;background:var(--card-2);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:20px;}
+
+/* animations */
+@keyframes pulse{0%{opacity:1;}50%{opacity:.6;}100%{opacity:1;}}
+.pulse{animation:pulse 1s infinite;}
+
+/* page sections */
+.page{display:none;}
+.page.active{display:flex;flex-direction:column;height:100%;}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="phone-frame">
+    <div class="screen">
+      <div class="island"></div>
+      <div class="statusbar">
+        <span class="time" id="current-time">9:41</span>
+        <span id="statusicons"></span>
+      </div>
+
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div class="content">
+          <!-- header -->
+          <div class="row between" style="margin-top:6px;align-items:flex-start;">
+            <div>
+              <div class="eyebrow" id="day-label">Tuesday, 2 Jun</div>
+              <div class="h1" style="font-size:26px;margin-top:4px;">Ready to focus?</div>
+            </div>
+            <div class="avatar" style="width:42px;height:42px;"><i data-face></i></div>
+          </div>
+          <!-- mini stats -->
+          <div class="row" style="gap:10px;margin-top:16px;">
+            <div class="card grow" style="padding:12px 14px;">
+              <div class="label" style="font-size:11.5px;">Today</div>
+              <div class="num" style="font-size:18px;font-weight:600;margin-top:3px;" id="today-time">0h 0m</div>
+            </div>
+            <div class="card grow" style="padding:12px 14px;">
+              <div class="label" style="font-size:11.5px;">Streak</div>
+              <div class="num" style="font-size:18px;font-weight:600;margin-top:3px;" id="streak-days">0d</div>
+            </div>
+            <div class="card grow" style="padding:12px 14px;">
+              <div class="label" style="font-size:11.5px;">Balance</div>
+              <div class="num accent" style="font-size:18px;font-weight:600;margin-top:3px;" id="balance-minutes">0</div>
+            </div>
+          </div>
+          <!-- dial hero -->
+          <div class="grow" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;">
+            <div class="dial" style="width:250px;height:250px;" data-dial data-fraction="0">
+              <div class="plate"></div><div class="disc"></div>
+              <svg class="ticks" viewBox="0 0 100 100"></svg>
+              <div class="center" style="z-index:2;width:34%;height:34%;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;background:radial-gradient(130% 130% at 35% 28%,#2c2a26,#141310);box-shadow:0 10px 24px rgba(26,25,22,.32),inset 0 2px 3px rgba(255,255,255,.25);">
+                <span class="num" style="font-size:34px;font-weight:600;line-height:1;" id="dial-time">25</span>
+                <span style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.65;margin-top:2px;">min</span>
+              </div>
+            </div>
+            <div class="chip" id="duration-chip">Focus <b class="num" style="font-weight:600;">25:00</b><span class="chev" data-chev></span></div>
+          </div>
+          <!-- start -->
+          <div style="padding-bottom:96px;"><button class="btn" onclick="startFocus()">Start Focus</button></div>
+        </div>
+      </div>
+
+      <!-- FOCUS MODE PAGE -->
+      <div class="page" id="page-focus">
+        <div class="content" style="padding:14px 22px 30px;">
+          <div class="row" style="justify-content:center;margin-top:8px;">
+            <div class="seg">
+              <span class="on" onclick="setTimerMode('countdown')">Countdown</span>
+              <span onclick="setTimerMode('countup')">Count up</span>
+            </div>
+          </div>
+          <div class="grow" style="display:flex;align-items:center;justify-content:center;">
+            <div class="dial" style="width:290px;height:290px;" data-dial id="focus-dial" data-fraction="0">
+              <div class="plate"></div><div class="disc"></div>
+              <svg class="ticks" viewBox="0 0 100 100"></svg>
+              <div class="center">
+                <div class="big num" style="font-size:50px;" id="timer-display">25:00</div>
+                <div class="sub" style="font-size:14px;" id="timer-info">of 25:00</div>
+              </div>
+            </div>
+          </div>
+          <!-- earning hint -->
+          <div class="card" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <span style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-soft);">
+              <span class="accent" data-ic-inline="coin"></span>Earning this session
+            </span>
+            <span class="num accent" style="font-weight:600;font-size:16px;" id="earning-amount">+0 min</span>
+          </div>
+          <!-- progress -->
+          <div>
+            <div class="row between" style="font-size:12px;color:var(--ink-mute);margin-bottom:8px;">
+              <span>0%</span>
+              <span class="num" style="color:var(--ink);font-weight:600;" id="progress-pct">0%</span>
+              <span>100%</span>
+            </div>
+            <div class="track"><i id="progress-bar" style="width:0%;"></i></div>
+          </div>
+          <div class="row" style="gap:12px;margin-top:22px;">
+            <button class="btn btn--ghost grow" style="height:58px;" onclick="endFocusEarly()">End early</button>
+            <button class="btn grow" style="height:58px;" id="pause-btn" onclick="togglePause()">Pause</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REWARDS PAGE -->
+      <div class="page" id="page-rewards">
+        <div class="content">
+          <div class="row between center-x" style="margin-top:8px;">
+            <div class="h1" style="font-size:30px;">Rewards</div>
+            <div style="display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 14px;border-radius:999px;background:var(--ink);color:#fff;box-shadow:var(--sh-ink);">
+              <span style="color:var(--accent-2);display:flex;" data-ic-inline="coin"></span>
+              <span class="num" style="font-weight:600;font-size:15px;" id="reward-balance">0</span>
+              <span style="font-size:12px;opacity:.6;">min</span>
+            </div>
+          </div>
+          <!-- grid -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;" id="rewards-grid">
+            <!-- Rewards will be populated here -->
+          </div>
+          <!-- history -->
+          <div style="margin-top:18px;">
+            <div class="label" style="margin:0 2px 10px;font-weight:500;">Recently claimed</div>
+            <div class="card" style="padding:4px;" id="history-container">
+              <!-- History will be populated here -->
+            </div>
+          </div>
+          <div class="mt-auto"></div>
+        </div>
+        <button class="fab" onclick="showAddRewardModal()" data-ic-inline="plus"></button>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="page-settings">
+        <div class="content">
+          <div class="h1" style="font-size:30px;margin-top:8px;">Settings</div>
+          <!-- profile -->
+          <div class="card" style="margin-top:18px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;">
+            <div class="avatar" style="width:52px;height:52px;"><i data-face></i></div>
+            <div class="grow">
+              <div style="font-size:17px;font-weight:600;" id="user-name">User</div>
+              <div style="font-size:13px;color:var(--ink-mute);" id="user-streak-text">Focused 0 days in a row</div>
+            </div>
+            <span class="chev" data-chev></span>
+          </div>
+
+          <div class="glabel">Session</div>
+          <div class="card" style="padding:0;">
+            <div class="srow">
+              <div class="ic" data-ic-inline="clock"></div>
+              <div class="nm">Default duration</div>
+              <span class="val">
+                <span id="default-duration-display">25</span> min <span class="chev" data-chev></span>
+              </span>
+            </div>
+            <div class="srow">
+              <div class="ic" data-ic-inline="focus"></div>
+              <div class="nm">Default timer mode</div>
+              <span class="val">Countdown <span class="chev" data-chev></span></span>
+            </div>
+          </div>
+
+          <div class="glabel">Preferences</div>
+          <div class="card" style="padding:0;">
+            <div class="srow">
+              <div class="ic" style="font-size:15px;">🌐</div>
+              <div class="nm">Language</div>
+              <span class="val">English <span class="chev" data-chev></span></span>
+            </div>
+            <div class="srow" style="cursor:auto;">
+              <div class="ic" data-ic-inline="bolt"></div>
+              <div class="nm">Strict mode</div>
+              <div class="toggle on" onclick="toggleStrictMode(event)"><b></b></div>
+            </div>
+          </div>
+
+          <div class="glabel">Danger zone</div>
+          <div class="card" style="padding:0;">
+            <div class="srow" onclick="clearAllData()">
+              <div class="ic" style="background:#fbe3e3;color:var(--danger);" data-ic-inline="bolt"></div>
+              <div class="nm" style="color:var(--danger);">Wipe all data</div>
+              <span class="chev" data-chev></span>
+            </div>
+          </div>
+          <div class="mt-auto"></div>
+        </div>
+      </div>
+
+      <!-- floating nav -->
+      <nav class="nav">
+        <div class="nav__item active" data-ic="home" onclick="goToPage('dashboard')"></div>
+        <div class="nav__item" data-ic="focus" onclick="goToPage('focus')"></div>
+        <div class="nav__item" data-ic="gift" onclick="goToPage('rewards')"></div>
+        <div class="nav__item" data-ic="cog" onclick="goToPage('settings')"></div>
+      </nav>
+
+      <!-- Modal for adding rewards -->
+      <div class="modal" id="reward-modal">
+        <div class="modal-content">
+          <button class="modal-close" onclick="closeRewardModal()">×</button>
+          <h2 class="h2">Add Custom Reward</h2>
+          <div style="margin-top:16px;">
+            <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:500;">Reward name</label>
+            <input type="text" id="reward-name-input" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:14px;" placeholder="e.g., Ice cream">
+          </div>
+          <div style="margin-top:14px;">
+            <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:500;">Cost (minutes)</label>
+            <input type="number" id="reward-cost-input" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:14px;" placeholder="e.g., 120" min="1">
+          </div>
+          <div style="margin-top:14px;">
+            <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:500;">Emoji</label>
+            <input type="text" id="reward-emoji-input" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:14px;" placeholder="e.g., 🍕" maxlength="2">
+          </div>
+          <button class="btn btn--accent" style="margin-top:20px;" onclick="saveCustomReward()">Add Reward</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================
+// APP STATE & INITIALIZATION
+// ============================================
+let appState = {
+  userName: 'Sumaiya',
+  todayFocusTime: 0, // in minutes
+  streak: 24,
+  balance: 1240,
+  defaultDuration: 25,
+  strictMode: true,
+  timerMode: 'countdown',
+  isPaused: false,
+  focusStartTime: null,
+  pausedTime: 0,
+  rewards: [
+    { id: 1, name: 'Coffee break', emoji: '☕', cost: 60, tint: '#e7d3bd' },
+    { id: 2, name: 'Game hour', emoji: '🎮', cost: 240, tint: '#cfe0d2' },
+    { id: 3, name: 'Movie night', emoji: '🍿', cost: 90, tint: '#dcd6ec' },
+    { id: 4, name: 'Spa day', emoji: '🧖', cost: 1500, tint: '#cfe2e8' }
+  ],
+  rewardHistory: [
+    { name: 'Game hour', emoji: '🎮', cost: 240, date: 'Yesterday' },
+    { name: 'Coffee break', emoji: '☕', cost: 60, date: 'Mon, 9:12' }
+  ],
+  sessionDuration: 25, // in minutes
+  sessionElapsed: 0, // in seconds
+  sessionActive: false
+};
+
+// ============================================
+// TIME & DATE UTILITIES
+// ============================================
+function updateTime() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('current-time').textContent = hours + ':' + minutes;
+  
+  // Update day label
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayName = days[now.getDay()];
+  const dayNum = now.getDate();
+  const monthName = months[now.getMonth()];
+  document.getElementById('day-label').textContent = dayName + ', ' + dayNum + ' ' + monthName;
+}
+
+function formatTime(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+}
+
+function formatMinutesHours(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+setInterval(updateTime, 1000);
+updateTime();
+
+// ============================================
+// RENDERING & UI UPDATES
+// ============================================
+function updateDashboard() {
+  document.getElementById('today-time').textContent = formatMinutesHours(appState.todayFocusTime);
+  document.getElementById('streak-days').textContent = appState.streak + 'd';
+  document.getElementById('balance-minutes').textContent = appState.balance.toLocaleString();
+  document.getElementById('user-name').textContent = appState.userName;
+  document.getElementById('user-streak-text').textContent = 'Focused ' + appState.streak + ' days in a row';
+  document.getElementById('dial-time').textContent = appState.defaultDuration;
+  document.getElementById('duration-chip').innerHTML = 'Focus <b class="num" style="font-weight:600;">' + formatTime(appState.defaultDuration * 60) + '</b><span class="chev" data-chev></span>';
+  document.getElementById('reward-balance').textContent = appState.balance;
+  document.getElementById('default-duration-display').textContent = appState.defaultDuration;
+  renderRewards();
+  renderHistory();
+  updateDial();
+}
+
+function renderRewards() {
+  const grid = document.getElementById('rewards-grid');
+  grid.innerHTML = '';
+  appState.rewards.forEach(reward => {
+    const canClaim = appState.balance >= reward.cost;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.padding = '16px 16px 14px';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    card.style.alignItems = 'flex-start';
+    card.style.gap = '10px';
+    card.innerHTML = `
+      <div class="rico" style="--tint:${reward.tint};">${reward.emoji}</div>
+      <div style="font-size:15px;font-weight:600;">${reward.name}</div>
+      <div class="row between" style="width:100%;align-items:center;">
+        <span class="num" style="font-size:14px;font-weight:600;color:var(--ink-soft);">${reward.cost} <span style="font-weight:400;color:var(--ink-mute);">min</span></span>
+        <button class="claim ${canClaim ? '' : 'locked'}" onclick="claimReward(${reward.id})">${canClaim ? 'Claim' : 'Need ' + (reward.cost - appState.balance)}</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderHistory() {
+  const container = document.getElementById('history-container');
+  if (appState.rewardHistory.length === 0) {
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ink-mute);font-size:14px;">No rewards claimed yet</div>';
+    return;
+  }
+  container.innerHTML = appState.rewardHistory.map(item => `
+    <div class="srow">
+      <div class="ic" style="border-radius:50%;font-size:18px;">${item.emoji}</div>
+      <div class="grow">
+        <div style="font-size:14px;font-weight:600;">${item.name}</div>
+        <div style="font-size:12px;color:var(--ink-mute);">${item.date}</div>
+      </div>
+      <span class="num" style="font-size:14px;font-weight:600;color:var(--ink-soft);">−${item.cost}</span>
+    </div>
+  `).join('');
+}
+
+function updateDial() {
+  const dials = document.querySelectorAll('[data-dial]');
+  dials.forEach(dial => {
+    let fraction = 0;
+    if (dial.id === 'focus-dial' && appState.sessionActive) {
+      fraction = appState.sessionElapsed / (appState.sessionDuration * 60);
+    }
+    drawTicks(dial, fraction);
+  });
+}
+
+function drawTicks(dialElement, fraction) {
+  const svg = dialElement.querySelector('.ticks');
+  if (!svg) return;
+  const N = 116, on = Math.round(fraction * N), cx = 50, cy = 50, rOut = 46;
+  let out = '';
+  for (let i = 0; i < N; i++) {
+    const a = (-90 + i / N * 360) * Math.PI / 180;
+    const maj = (i % (Math.floor(N / 12)) === 0);
+    const len = maj ? 5 : 2.8;
+    const r1 = rOut - len;
+    const x1 = cx + r1 * Math.cos(a);
+    const y1 = cy + r1 * Math.sin(a);
+    const x2 = cx + rOut * Math.cos(a);
+    const y2 = cy + rOut * Math.sin(a);
+    const active = i < on;
+    const col = active ? '#ff6a2b' : (maj ? '#b9b3a6' : '#cfc9bd');
+    const w = maj ? 1.6 : 1;
+    const op = active ? 1 : (maj ? 0.9 : 0.7);
+    out += '<line x1="' + x1.toFixed(2) + '" y1="' + y1.toFixed(2) + '" x2="' + x2.toFixed(2) + '" y2="' + y2.toFixed(2) + '" stroke="' + col + '" stroke-width="' + w + '" stroke-linecap="round" opacity="' + op + '"/>';
+  }
+  svg.innerHTML = out;
+}
+
+// ============================================
+// PAGE NAVIGATION
+// ============================================
+function goToPage(pageName) {
+  const pages = document.querySelectorAll('.page');
+  const navItems = document.querySelectorAll('.nav__item');
+  
+  pages.forEach(p => p.classList.remove('active'));
+  navItems.forEach(n => {
+    n.classList.remove('active', 'accent');
+  });
+  
+  const pageMap = { dashboard: 0, focus: 1, rewards: 2, settings: 3 };
+  const pageIndex = pageMap[pageName];
+  pages[pageIndex].classList.add('active');
+  navItems[pageIndex].classList.add('active');
+  if (pageName === 'rewards') navItems[pageIndex].classList.add('accent');
+  
+  document.querySelector('.content').scrollTop = 0;
+}
+
+// ============================================
+// FOCUS SESSION LOGIC
+// ============================================
+let focusInterval = null;
+
+function startFocus() {
+  appState.sessionDuration = appState.defaultDuration;
+  appState.sessionElapsed = 0;
+  appState.sessionActive = true;
+  appState.isPaused = false;
+  appState.focusStartTime = Date.now();
+  appState.pausedTime = 0;
+  
+  goToPage('focus');
+  updateFocusDisplay();
+  
+  focusInterval = setInterval(() => {
+    if (!appState.isPaused && appState.sessionActive) {
+      const elapsed = Math.floor((Date.now() - appState.focusStartTime - appState.pausedTime) / 1000);
+      appState.sessionElapsed = Math.min(elapsed, appState.sessionDuration * 60);
+      updateFocusDisplay();
+      
+      if (appState.sessionElapsed >= appState.sessionDuration * 60) {
+        endFocusSession();
+      }
+    }
+  }, 100);
+}
+
+function updateFocusDisplay() {
+  let remaining = appState.sessionDuration * 60 - appState.sessionElapsed;
+  if (remaining < 0) remaining = 0;
+  
+  document.getElementById('timer-display').textContent = formatTime(remaining);
+  document.getElementById('timer-info').textContent = 'of ' + formatTime(appState.sessionDuration * 60);
+  document.getElementById('earning-amount').textContent = '+' + Math.floor(appState.sessionElapsed / 60) + ' min';
+  
+  const progress = appState.sessionElapsed / (appState.sessionDuration * 60);
+  document.getElementById('progress-bar').style.width = (progress * 100) + '%';
+  document.getElementById('progress-pct').textContent = Math.floor(progress * 100) + '%';
+  
+  updateDial();
+}
+
+function togglePause() {
+  if (appState.isPaused) {
+    appState.isPaused = false;
+    appState.focusStartTime = Date.now();
+    appState.pausedTime = 0;
+    document.getElementById('pause-btn').textContent = 'Pause';
+  } else {
+    appState.isPaused = true;
+    appState.pausedTime += Date.now() - appState.focusStartTime;
+    document.getElementById('pause-btn').textContent = 'Resume';
+  }
+}
+
+function endFocusEarly() {
+  if (confirm('End this focus session early?')) {
+    const earnedMinutes = Math.floor(appState.sessionElapsed / 60);
+    appState.balance += earnedMinutes;
+    appState.todayFocusTime += earnedMinutes;
+    endFocusSession();
+  }
+}
+
+function endFocusSession() {
+  if (!appState.sessionActive) return;
+  
+  clearInterval(focusInterval);
+  appState.sessionActive = false;
+  
+  const earnedMinutes = Math.floor(appState.sessionElapsed / 60);
+  if (earnedMinutes > 0) {
+    appState.balance += earnedMinutes;
+    appState.todayFocusTime += earnedMinutes;
+  }
+  
+  updateDashboard();
+  goToPage('dashboard');
+  alert('Focus session complete! Earned ' + earnedMinutes + ' minutes.');
+}
+
+function setTimerMode(mode) {
+  appState.timerMode = mode;
+  const spans = document.querySelectorAll('.seg span');
+  spans.forEach(s => s.classList.remove('on'));
+  if (mode === 'countdown') {
+    spans[0].classList.add('on');
+  } else {
+    spans[1].classList.add('on');
+  }
+}
+
+// ============================================
+// REWARDS LOGIC
+// ============================================
+function claimReward(rewardId) {
+  const reward = appState.rewards.find(r => r.id === rewardId);
+  if (!reward) return;
+  if (appState.balance < reward.cost) {
+    alert('Not enough minutes! You need ' + (reward.cost - appState.balance) + ' more.');
+    return;
+  }
+  
+  appState.balance -= reward.cost;
+  appState.rewardHistory.unshift({
+    name: reward.name,
+    emoji: reward.emoji,
+    cost: reward.cost,
+    date: 'Just now'
+  });
+  
+  renderRewards();
+  renderHistory();
+  updateDashboard();
+  alert('Claimed ' + reward.name + '!');
+}
+
+function showAddRewardModal() {
+  document.getElementById('reward-modal').classList.add('active');
+}
+
+function closeRewardModal() {
+  document.getElementById('reward-modal').classList.remove('active');
+  document.getElementById('reward-name-input').value = '';
+  document.getElementById('reward-cost-input').value = '';
+  document.getElementById('reward-emoji-input').value = '';
+}
+
+function saveCustomReward() {
+  const name = document.getElementById('reward-name-input').value.trim();
+  const cost = parseInt(document.getElementById('reward-cost-input').value);
+  const emoji = document.getElementById('reward-emoji-input').value.trim();
+  
+  if (!name || !cost || !emoji) {
+    alert('Please fill in all fields');
+    return;
+  }
+  
+  const newReward = {
+    id: Math.max(...appState.rewards.map(r => r.id)) + 1,
+    name: name,
+    emoji: emoji,
+    cost: cost,
+    tint: '#' + Math.floor(Math.random()*16777215).toString(16)
+  };
+  
+  appState.rewards.push(newReward);
+  renderRewards();
+  closeRewardModal();
+  alert('Reward added!');
+}
+
+// ============================================
+// SETTINGS LOGIC
+// ============================================
+function toggleStrictMode(e) {
+  e.stopPropagation();
+  const toggle = e.target.closest('.toggle');
+  appState.strictMode = !appState.strictMode;
+  if (appState.strictMode) {
+    toggle.classList.add('on');
+    toggle.classList.remove('off');
+  } else {
+    toggle.classList.remove('on');
+    toggle.classList.add('off');
+  }
+}
+
+function clearAllData() {
+  if (confirm('Are you sure you want to wipe all data? This cannot be undone.')) {
+    appState = {
+      userName: 'Sumaiya',
+      todayFocusTime: 0,
+      streak: 0,
+      balance: 0,
+      defaultDuration: 25,
+      strictMode: true,
+      timerMode: 'countdown',
+      isPaused: false,
+      focusStartTime: null,
+      pausedTime: 0,
+      rewards: appState.rewards,
+      rewardHistory: [],
+      sessionDuration: 25,
+      sessionElapsed: 0,
+      sessionActive: false
+    };
+    updateDashboard();
+    alert('All data wiped!');
+  }
+}
+
+// ============================================
+// ICON RENDERING
+// ============================================
+function renderIcons() {
+  const I = {
+    home: '<path d="M3 10.5 12 4l9 6.5"/><path d="M5 9.5V20h14V9.5"/>',
+    focus: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/>',
+    gift: '<path d="M4 11h16v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 7.5h18V11H3zM12 7.5V20"/>',
+    cog: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.4M12 19.1v2.4M21.5 12h-2.4M4.9 12H2.5M18.7 5.3l-1.7 1.7M7 17l-1.7 1.7M18.7 18.7 17 17M7 7 5.3 5.3"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
+    coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 9.2c.7-.8 4.8-1.1 4.8 1s-4.4 1.4-4.8 2.5 4 1.6 4.8.8"/>',
+    bolt: '<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>'
+  };
+  
+  function svg(name, size) {
+    return '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + I[name] + '</svg>';
+  }
+  
+  document.querySelectorAll('[data-ic]').forEach(e => {
+    e.innerHTML = svg(e.getAttribute('data-ic'), 22);
+  });
+  
+  document.querySelectorAll('[data-ic-inline]').forEach(e => {
+    e.innerHTML = svg(e.getAttribute('data-ic-inline'), e.getAttribute('data-ic-inline') === 'plus' ? 20 : 18);
+  });
+  
+  document.querySelectorAll('[data-chev]').forEach(e => {
+    e.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>';
+  });
+  
+  document.querySelectorAll('[data-face]').forEach(e => {
+    e.innerHTML = '<svg width="70%" height="70%" viewBox="0 0 40 40"><circle cx="20" cy="15" r="7" fill="rgba(255,255,255,.92)"/><path d="M6 40c2-9 8-12 14-12s12 3 14 12z" fill="rgba(255,255,255,.92)"/></svg>';
+  });
+  
+  document.querySelectorAll('[data-statusicons]').forEach(e => {
+    e.innerHTML = '<span style="display:inline-flex;gap:7px;align-items:center;">' +
+      '<svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx=".7" fill="currentColor"/><rect x="4.5" y="4.5" width="3" height="7.5" rx=".7" fill="currentColor"/><rect x="9" y="2" width="3" height="10" rx=".7" fill="currentColor"/><rect x="13.5" y="0" width="3" height="12" rx=".7" fill="currentColor"/></svg>' +
+      '<svg width="16" height="12" viewBox="0 0 17 12"><path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5 5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z" fill="currentColor"/><circle cx="8.5" cy="10.5" r="1.4" fill="currentColor"/></svg>' +
+      '<svg width="26" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" stroke="currentColor" stroke-opacity=".4" fill="none"/><rect x="2" y="2" width="18" height="9" rx="2" fill="currentColor"/></svg>' +
+      '</span>';
+  });
+}
+
+// ============================================
+// INITIALIZATION
+// ============================================
+renderIcons();
+updateDashboard();
+</script>
+</body>
+</html>
