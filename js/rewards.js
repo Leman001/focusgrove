@@ -14,6 +14,15 @@ function notifyBalanceChange() {
   if (onBalanceChange) onBalanceChange();
 }
 
+// ---- Emoji tint map ----
+
+const TINTS = {
+  '☕': '#e7d3bd', '🎮': '#cfe0d2', '🍿': '#dcd6ec', '🧖': '#cfe2e8',
+  '🎬': '#e8d5cc', '📱': '#cce4f0', '🍕': '#f0e0cc', '🛍️': '#f0d5e5',
+  '🎵': '#d5d5f0', '🏖️': '#cce8e0',
+};
+function emojiTint(e) { return TINTS[e] || '#e8e2d9'; }
+
 // ---- Render Rewards Grid ----
 
 export function renderRewardsList(container) {
@@ -28,24 +37,20 @@ export function renderRewardsList(container) {
   container.innerHTML = rewards.map(reward => {
     const claimable = balance >= reward.cost;
     const missing = Math.max(0, reward.cost - balance);
+    const tint = emojiTint(reward.emoji);
 
     return `
-      <div class="reward-card ${claimable ? 'claimable' : ''}" data-id="${reward.id}">
-        <div class="reward-card-header">
-          <span class="reward-emoji">${reward.emoji}</span>
-          <button class="reward-delete-btn" data-id="${reward.id}" title="Delete">✕</button>
-        </div>
+      <div class="reward-card fg-card" data-id="${reward.id}">
+        <button class="reward-delete-btn" data-id="${reward.id}" title="Delete">✕</button>
+        <div class="rico" style="--tint:${tint};">${reward.emoji}</div>
         <div class="reward-name">${escapeHtml(reward.name)}</div>
-        <div class="reward-cost">
-          <span class="reward-cost-value">${reward.cost}</span>
-          <span class="reward-cost-label">${t('costLabel')}</span>
+        <div class="reward-card-footer">
+          <span class="reward-cost-val fg-num">${reward.cost} <span class="reward-cost-unit">min</span></span>
+          ${claimable
+            ? `<button class="btn-claim" data-id="${reward.id}">Claim</button>`
+            : `<button class="btn-claim locked" disabled data-id="${reward.id}">Need ${missing}</button>`
+          }
         </div>
-        <div class="reward-status" style="margin-bottom: 12px;">
-          ${!claimable ? `<span class="reward-missing-text" style="font-size:0.8rem; color:var(--text-secondary);">Осталось накопить: ${missing} ${t('min')}</span>` : ''}
-        </div>
-        <button class="btn-claim ${!claimable ? 'disabled' : ''}" data-id="${reward.id}" ${!claimable ? 'disabled' : ''} style="${!claimable ? 'background: var(--bg-secondary); color: var(--text-muted); cursor: not-allowed;' : ''}">
-          ${t('claim')} ${claimable ? '🎉' : '🔒'}
-        </button>
       </div>
     `;
   }).join('');
@@ -113,34 +118,34 @@ export function renderRewardsPreview(container) {
 // ---- Render History ----
 
 export function renderHistory(container) {
-  const claimed = Storage.getClaimedRewards().reverse(); // newest first
+  const claimed = Storage.getClaimedRewards().reverse();
   const noHistoryHint = document.getElementById('no-history-hint');
+  const historyCard = document.getElementById('rewards-history-card');
 
   if (claimed.length === 0) {
     container.innerHTML = '';
+    if (historyCard) historyCard.style.display = 'none';
     if (noHistoryHint) noHistoryHint.style.display = 'block';
     return;
   }
 
+  if (historyCard) historyCard.style.display = 'block';
   if (noHistoryHint) noHistoryHint.style.display = 'none';
 
   container.innerHTML = claimed.map(item => {
     const date = new Date(item.date);
-    const dateStr = date.toLocaleDateString(getLanguage() === 'ru' ? 'ru-RU' : 'en-US', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
+    const dateStr = date.toLocaleDateString('en-US', {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
     });
 
     return `
-      <div class="history-item">
-        <span class="history-emoji">${item.rewardEmoji}</span>
-        <div class="history-info">
-          <span class="history-name">${escapeHtml(item.rewardName)}</span>
-          <span class="history-date">${dateStr}</span>
+      <div class="srow">
+        <div class="srow-ic" style="border-radius:50%;font-size:20px;background:transparent;">${item.rewardEmoji}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">${escapeHtml(item.rewardName)}</div>
+          <div style="font-size:12px;color:var(--ink-mute);">${dateStr}</div>
         </div>
-        <span class="history-cost">-${item.cost} ${t('min')}</span>
+        <span class="fg-num" style="font-size:14px;font-weight:600;color:var(--ink-soft);">−${item.cost}</span>
       </div>
     `;
   }).join('');
