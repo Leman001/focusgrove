@@ -10,7 +10,6 @@ function smoothstep(e0, e1, x) {
 }
 function rand(lo = 0, hi = 1) { return lo + Math.random() * (hi - lo); }
 
-/** Jitter vertices for organic low-poly feel */
 function jitter(geo, amount) {
   const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) {
@@ -23,50 +22,71 @@ function jitter(geo, amount) {
   return geo;
 }
 
-/** Assign per-face colors for painterly variation */
-function paintFaces(geo, baseColor, variation = 0.08) {
-  const count = geo.attributes.position.count;
-  const colors = new Float32Array(count * 3);
-  const base = new THREE.Color(baseColor);
-  for (let i = 0; i < count; i += 3) {
+function paintFaces(geo, baseHex, variation = 0.06) {
+  const cnt = geo.attributes.position.count;
+  const cols = new Float32Array(cnt * 3);
+  const base = new THREE.Color(baseHex);
+  for (let i = 0; i < cnt; i += 3) {
     const c = base.clone();
-    c.r += (Math.random() - 0.5) * variation;
-    c.g += (Math.random() - 0.5) * variation;
-    c.b += (Math.random() - 0.5) * variation;
-    for (let j = 0; j < 3; j++) {
-      colors[(i + j) * 3] = c.r;
-      colors[(i + j) * 3 + 1] = c.g;
-      colors[(i + j) * 3 + 2] = c.b;
-    }
+    c.r = clamp(c.r + (Math.random() - 0.5) * variation, 0, 1);
+    c.g = clamp(c.g + (Math.random() - 0.5) * variation, 0, 1);
+    c.b = clamp(c.b + (Math.random() - 0.5) * variation, 0, 1);
+    for (let j = 0; j < 3; j++) { cols[(i+j)*3]=c.r; cols[(i+j)*3+1]=c.g; cols[(i+j)*3+2]=c.b; }
   }
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
   return geo;
 }
 
-// ─── Colour Palette ──────────────────────────────────────────────────────────
+// Build a curved trunk from a Catmull-Rom spline extruded as a tube
+function buildCurvedTrunk(radiusBottom, radiusTop, height, curve, segments) {
+  const pts = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const x = Math.sin(t * Math.PI * 0.3) * curve * (1 - t * 0.4);
+    const z = Math.cos(t * Math.PI * 0.2) * curve * 0.3 * t;
+    pts.push(new THREE.Vector3(x, t * height, z));
+  }
+  const path = new THREE.CatmullRomCurve3(pts);
+  const geo = new THREE.TubeGeometry(path, segments * 2, undefined, 8, false);
+  // Vary radius along the tube
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    const t = clamp(y / height, 0, 1);
+    const r = lerp(radiusBottom, radiusTop, t);
+    const baseR = geo.parameters?.radius || 1;
+    // Scale x/z relative to center of tube cross-section
+    // We approximate by scaling distance from the spine
+    const spineX = Math.sin(t * Math.PI * 0.3) * curve * (1 - t * 0.4);
+    const spineZ = Math.cos(t * Math.PI * 0.2) * curve * 0.3 * t;
+    const dx = pos.getX(i) - spineX;
+    const dz = pos.getZ(i) - spineZ;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist > 0.001) {
+      const scale = r / Math.max(dist, 0.01);
+      pos.setX(i, spineX + dx * scale);
+      pos.setZ(i, spineZ + dz * scale);
+    }
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
 
-const PAL = {
-  ground:  0xd2c9a8,
-  mound:   0xb8a57a,
-  grass1:  0x5cba6f,
-  grass2:  0x3d9952,
-  grass3:  0x7ed890,
-  trunk:   0x9c7c52,
-  trunkD:  0x7a5c35,
-  leaf1:   0x5ba06e,
-  leaf2:   0x3d8a57,
-  leaf3:   0x7ec48a,
-  flower1: 0xff8aac,
-  flower2: 0xffb347,
-  flower3: 0xc084fc,
-  fruit1:  0xff6b6b,
-  fruit2:  0xfbbf24,
-  fruit3:  0xff8a4c,
-  firefly: 0xfde68a,
-  sparkle: 0xffffff,
+// ─── Palette ────────────────────────────────────────────────────────────────
+
+const P = {
+  ground: 0x7cb868, groundDark: 0x5a9a48,
+  mound: 0x6aad55,
+  trunk: 0x8b6042, trunkDark: 0x6b4530,
+  // Crown: light→dark greens for variety
+  leaf: [0x8bc34a, 0x7cb342, 0x689f38, 0x558b2f, 0x9ccc65, 0xaed581, 0x7cb868, 0x66bb6a],
+  flower: [0xff80ab, 0xffab91, 0xce93d8, 0xfff176],
+  fruit: [0xef5350, 0xffa726, 0xffee58],
+  firefly: 0xfff59d,
 };
 
-// ─── FocusTree ───────────────────────────────────────────────────────────────
+// ─── FocusTree ──────────────────────────────────────────────────────────────
 
 export class FocusTree {
   constructor(containerId) {
@@ -81,404 +101,311 @@ export class FocusTree {
 
     this._targetProgress = 0;
     this._currentProgress = 0;
-    this._prevMilestone = -1; // for burst effects
+    this._prevMilestone = -1;
 
-    // Scene objects
-    this.sceneRoot = new THREE.Group();
+    this.root = new THREE.Group();
     this.grassBlades = [];
     this.sprout = null;
-    this.trunkParts = [];
-    this.crownParts = [];   // { mesh, mat, baseY, baseScale, appear }
-    this.flowers = [];       // { mesh, appear, phase }
-    this.fruits = [];        // { mesh, appear, phase }
-    this.fireflies = [];     // { mesh, vel, phase }
-    this.sparkles = [];      // burst particles
+    this.trunk = null;
+    this.crownParts = [];
+    this.flowers = [];
+    this.fruits = [];
+    this.fireflies = [];
+    this.sparkles = [];
     this.glowLight = null;
   }
 
-  // ── Public API ────────────────────────────────────────────────────────────
+  // ── Public ────────────────────────────────────────────────────────────────
 
   init() {
     this.container = document.getElementById(this.containerId);
     if (!this.container) return;
-
-    this._createRenderer();
-    this._createScene();
-    this._createCamera();
-    this._buildGround();
-    this._buildGrass();
-    this._buildSprout();
-    this._buildTrunk();
-    this._buildCrown();
-    this._buildFlowersAndFruits();
-    this._buildFireflies();
-    this._buildSparkles();
+    this._setup();
+    this._buildScene();
     this._setupResize();
     this._onResize();
     this._animate();
   }
 
   setProgress(p) { this._targetProgress = clamp(p, 0, 1); }
+  getProgress() { return this._currentProgress; }
 
   dispose() {
     if (this.animId) cancelAnimationFrame(this.animId);
     this.resizeObs?.disconnect();
-    if (this.renderer) {
-      this.renderer.dispose();
-      this.renderer.domElement?.parentNode?.removeChild(this.renderer.domElement);
-    }
+    this.renderer?.dispose();
+    this.renderer?.domElement?.parentNode?.removeChild(this.renderer.domElement);
     this.scene?.traverse(o => {
       o.geometry?.dispose();
       if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
     });
   }
 
-  // ── Renderer / Scene / Camera ─────────────────────────────────────────────
+  // ── Setup ─────────────────────────────────────────────────────────────────
 
-  _createRenderer() {
+  _setup() {
+    // Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.setClearColor(0xefece6, 1);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
-  }
 
-  _createScene() {
+    // Scene
     this.scene = new THREE.Scene();
-    this.scene.add(this.sceneRoot);
+    this.scene.add(this.root);
 
-    // Warm ambient
-    this.scene.add(new THREE.AmbientLight(0xfff8ee, 1.0));
-
-    // Key light (sun, warm)
-    const sun = new THREE.DirectionalLight(0xfff0cc, 1.2);
-    sun.position.set(3, 8, 5);
+    // Lighting: warm cinematic 3-point
+    this.scene.add(new THREE.AmbientLight(0xfff8ee, 0.9));
+    const sun = new THREE.DirectionalLight(0xffeedd, 1.1);
+    sun.position.set(4, 8, 5);
     this.scene.add(sun);
-
-    // Fill light (cool blue, subtle)
-    const fill = new THREE.DirectionalLight(0xd0e0ff, 0.35);
-    fill.position.set(-4, 3, -3);
+    const fill = new THREE.DirectionalLight(0xd4e8ff, 0.3);
+    fill.position.set(-5, 3, -3);
     this.scene.add(fill);
-
-    // Rim light (back-light for drama)
-    const rim = new THREE.DirectionalLight(0xffe4c4, 0.45);
-    rim.position.set(-2, 6, -5);
+    const rim = new THREE.DirectionalLight(0xffe8cc, 0.35);
+    rim.position.set(-2, 7, -6);
     this.scene.add(rim);
 
-    // Point glow that grows with the tree
-    this.glowLight = new THREE.PointLight(0x5cba6f, 0, 6);
+    this.glowLight = new THREE.PointLight(0x66bb6a, 0, 8);
     this.glowLight.position.set(0, 2, 0);
-    this.sceneRoot.add(this.glowLight);
-  }
+    this.root.add(this.glowLight);
 
-  _createCamera() {
+    // Camera
     const { clientWidth: w, clientHeight: h } = this.container;
-    this.camera = new THREE.PerspectiveCamera(48, w / (h || 1), 0.1, 100);
-    // Initial position — will be animated
+    this.camera = new THREE.PerspectiveCamera(44, w / (h || 1), 0.1, 100);
     this.camera.position.set(0, 2.5, 5.5);
     this.camera.lookAt(0, 1.2, 0);
+  }
+
+  _buildScene() {
+    this._buildGround();
+    this._buildGrass();
+    this._buildSprout();
+    this._buildTrunk();
+    this._buildCrown();
+    this._buildFlowers();
+    this._buildFruits();
+    this._buildFireflies();
+    this._buildSparkles();
   }
 
   // ── Ground ────────────────────────────────────────────────────────────────
 
   _buildGround() {
-    // Large ground disc
-    const gGeo = jitter(new THREE.CircleGeometry(4.5, 12), 0.08);
-    paintFaces(gGeo, PAL.ground, 0.03);
-    const ground = new THREE.Mesh(gGeo, new THREE.MeshLambertMaterial({
-      vertexColors: true, flatShading: true,
-    }));
+    // Green grass mound (like reference)
+    const gGeo = jitter(new THREE.CircleGeometry(3.8, 14), 0.06);
+    paintFaces(gGeo, P.ground, 0.04);
+    const ground = new THREE.Mesh(gGeo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.02;
-    this.sceneRoot.add(ground);
+    this.root.add(ground);
 
-    // Central mound
-    const mGeo = jitter(new THREE.SphereGeometry(0.7, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), 0.04);
-    const mound = new THREE.Mesh(mGeo, new THREE.MeshLambertMaterial({
-      color: PAL.mound, flatShading: true,
-    }));
-    mound.scale.set(1, 0.4, 1);
-    this.sceneRoot.add(mound);
-
-    // Decorative rocks
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0xb8a88a, flatShading: true });
-    const rocks = [
-      [1.5, 0.06, 0.8, 0.14], [-1.7, 0.05, -0.6, 0.11], [0.8, 0.07, -1.5, 0.16],
-      [-0.7, 0.04, 1.6, 0.09], [2.1, 0.05, -0.3, 0.10], [-2.0, 0.06, 0.4, 0.12],
-    ];
-    for (const [x, y, z, s] of rocks) {
-      const rGeo = jitter(new THREE.IcosahedronGeometry(s, 0), 0.025);
-      const rock = new THREE.Mesh(rGeo, rockMat);
-      rock.position.set(x, y, z);
-      rock.rotation.set(rand(0, Math.PI), rand(0, Math.PI), 0);
-      rock.scale.y = 0.55;
-      this.sceneRoot.add(rock);
-    }
+    // Raised mound at center
+    const mGeo = jitter(new THREE.SphereGeometry(0.9, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0.04);
+    paintFaces(mGeo, P.mound, 0.04);
+    const mound = new THREE.Mesh(mGeo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+    mound.scale.set(1.2, 0.35, 1.2);
+    this.root.add(mound);
   }
 
-  // ── Grass ─────────────────────────────────────────────────────────────────
+  // ── Grass (dense, like reference base) ────────────────────────────────────
 
   _buildGrass() {
-    const grassColors = [PAL.grass1, PAL.grass2, PAL.grass3];
-
-    // Ring of grass clusters
-    for (let i = 0; i < 40; i++) {
-      const angle = rand(0, Math.PI * 2);
-      const dist = rand(0.6, 3.2);
-      const x = Math.cos(angle) * dist;
-      const z = Math.sin(angle) * dist;
-
-      const h = rand(0.15, 0.35);
-      const geo = new THREE.ConeGeometry(0.03 + rand(0, 0.02), h, 4);
-      const mat = new THREE.MeshLambertMaterial({
-        color: grassColors[Math.floor(rand(0, 3))],
-        flatShading: true,
-      });
+    const greens = [P.ground, P.groundDark, P.mound, 0x8bc34a];
+    for (let i = 0; i < 60; i++) {
+      const a = rand(0, Math.PI * 2);
+      const d = rand(0.4, 3.0);
+      const h = rand(0.12, 0.32);
+      const geo = new THREE.ConeGeometry(0.025 + rand(0, 0.015), h, 4);
+      const mat = new THREE.MeshLambertMaterial({ color: greens[i % greens.length], flatShading: true });
       const blade = new THREE.Mesh(geo, mat);
-      blade.position.set(x, h / 2, z);
-      blade.rotation.z = rand(-0.2, 0.2);
-      blade.rotation.x = rand(-0.1, 0.1);
-      this.sceneRoot.add(blade);
-
-      this.grassBlades.push({
-        mesh: blade,
-        baseY: h / 2,
-        baseRotZ: blade.rotation.z,
-        phase: rand(0, Math.PI * 2),
-        speed: rand(1.5, 3.0),
-      });
+      blade.position.set(Math.cos(a) * d, h / 2, Math.sin(a) * d);
+      blade.rotation.z = rand(-0.15, 0.15);
+      this.root.add(blade);
+      this.grassBlades.push({ mesh: blade, baseRotZ: blade.rotation.z, phase: rand(0, 6.28), speed: rand(1.5, 3) });
     }
   }
 
   // ── Sprout ────────────────────────────────────────────────────────────────
 
   _buildSprout() {
-    const group = new THREE.Group();
-
-    // Stem
-    const stemGeo = jitter(new THREE.CylinderGeometry(0.025, 0.04, 0.5, 5), 0.005);
-    const stem = new THREE.Mesh(stemGeo, new THREE.MeshLambertMaterial({
-      color: 0x5cb874, flatShading: true,
-    }));
-    stem.position.y = 0.25;
-    group.add(stem);
-
-    // Two leaves
-    const leafMat = new THREE.MeshLambertMaterial({ color: 0x6ec97e, flatShading: true });
-    for (const side of [-1, 1]) {
-      const lGeo = new THREE.SphereGeometry(0.07, 5, 4);
-      lGeo.scale(1, 0.5, 1.5);
-      const leaf = new THREE.Mesh(lGeo, leafMat);
-      leaf.position.set(side * 0.08, 0.48, 0);
-      leaf.rotation.z = side * -0.5;
-      group.add(leaf);
+    const g = new THREE.Group();
+    const stemGeo = jitter(new THREE.CylinderGeometry(0.02, 0.035, 0.4, 5), 0.004);
+    g.add(new THREE.Mesh(stemGeo, new THREE.MeshLambertMaterial({ color: 0x66bb6a, flatShading: true })));
+    g.children[0].position.y = 0.2;
+    const lMat = new THREE.MeshLambertMaterial({ color: 0x81c784, flatShading: true });
+    for (const s of [-1, 1]) {
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.055, 5, 4), lMat);
+      l.scale.set(1, 0.5, 1.4);
+      l.position.set(s * 0.07, 0.42, 0);
+      l.rotation.z = s * -0.5;
+      g.add(l);
     }
-
-    group.scale.setScalar(0);
-    this.sceneRoot.add(group);
-    this.sprout = group;
+    g.scale.setScalar(0);
+    this.root.add(g);
+    this.sprout = g;
   }
 
-  // ── Trunk ─────────────────────────────────────────────────────────────────
+  // ── Curved Trunk (like reference — organic, slightly bent) ────────────────
 
   _buildTrunk() {
-    // Lower trunk (thick, darker)
-    const t1Geo = jitter(new THREE.CylinderGeometry(0.09, 0.2, 1.6, 8, 3), 0.015);
-    paintFaces(t1Geo, PAL.trunk, 0.06);
-    const t1 = new THREE.Mesh(t1Geo, new THREE.MeshLambertMaterial({
-      vertexColors: true, flatShading: true,
-    }));
-    t1.position.y = 0.8;
-    t1.scale.setScalar(0);
-    this.sceneRoot.add(t1);
-    this.trunkParts.push({ mesh: t1, appear: 0.08, targetScale: 1 });
-
-    // Upper trunk (thinner, lighter)
-    const t2Geo = jitter(new THREE.CylinderGeometry(0.06, 0.1, 1.0, 7, 2), 0.012);
-    paintFaces(t2Geo, PAL.trunkD, 0.05);
-    const t2 = new THREE.Mesh(t2Geo, new THREE.MeshLambertMaterial({
-      vertexColors: true, flatShading: true,
-    }));
-    t2.position.y = 2.1;
-    t2.scale.setScalar(0);
-    this.sceneRoot.add(t2);
-    this.trunkParts.push({ mesh: t2, appear: 0.15, targetScale: 1 });
-
-    // Branches
-    const branches = [
-      { y: 1.4, len: 0.6, rBot: 0.04, rTop: 0.02, ay: 0, az: -0.65, appear: 0.22 },
-      { y: 1.8, len: 0.5, rBot: 0.035, rTop: 0.018, ay: Math.PI * 0.65, az: 0.60, appear: 0.28 },
-      { y: 2.0, len: 0.55, rBot: 0.035, rTop: 0.018, ay: Math.PI * 1.3, az: -0.55, appear: 0.34 },
-      { y: 2.2, len: 0.4, rBot: 0.03, rTop: 0.015, ay: Math.PI * 0.35, az: 0.50, appear: 0.40 },
-    ];
-    for (const b of branches) {
-      const geo = new THREE.CylinderGeometry(b.rTop, b.rBot, b.len, 5);
-      geo.translate(0, b.len / 2, 0);
-      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
-        color: rand() > 0.5 ? PAL.trunk : PAL.trunkD, flatShading: true,
-      }));
-      mesh.position.y = b.y;
-      mesh.rotation.order = 'YXZ';
-      mesh.rotation.y = b.ay;
-      mesh.rotation.z = b.az;
-      mesh.scale.setScalar(0);
-      this.sceneRoot.add(mesh);
-      this.trunkParts.push({ mesh, appear: b.appear, targetScale: 1, angleZ: b.az, phase: rand(0, Math.PI * 2) });
-    }
+    // Main trunk: curved tube
+    const trunkGeo = buildCurvedTrunk(0.18, 0.07, 2.5, 0.25, 10);
+    jitter(trunkGeo, 0.01);
+    paintFaces(trunkGeo, P.trunk, 0.05);
+    this.trunk = new THREE.Mesh(trunkGeo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+    this.trunk.scale.setScalar(0);
+    this.root.add(this.trunk);
   }
 
-  // ── Crown ─────────────────────────────────────────────────────────────────
+  // ── Crown (dense cluster like reference — many overlapping blobs) ─────────
 
   _buildCrown() {
-    const crownDefs = [
-      // Main crown clusters — detail 1 for smoother look
-      { x: 0.0,  y: 2.9, z: 0.0,  r: 1.05, detail: 1, appear: 0.28, color: PAL.leaf1 },
-      { x: -0.7, y: 2.4, z: 0.2,  r: 0.72, detail: 1, appear: 0.34, color: PAL.leaf2 },
-      { x: 0.65, y: 2.5, z: -0.2, r: 0.65, detail: 1, appear: 0.38, color: PAL.leaf3 },
-      { x: 0.1,  y: 2.3, z: 0.65, r: 0.55, detail: 1, appear: 0.42, color: PAL.leaf1 },
-      { x: -0.3, y: 2.5, z: -0.6, r: 0.50, detail: 1, appear: 0.46, color: PAL.leaf2 },
-      // Upper canopy (appears later)
-      { x: 0.0,  y: 3.4, z: 0.0,  r: 0.75, detail: 1, appear: 0.52, color: PAL.leaf3 },
-      { x: 0.5,  y: 3.0, z: 0.4,  r: 0.50, detail: 1, appear: 0.56, color: PAL.leaf1 },
-      { x: -0.5, y: 3.1, z: -0.3, r: 0.48, detail: 1, appear: 0.58, color: PAL.leaf2 },
+    // Dense canopy: ~18 overlapping icospheres of varying size
+    // Arranged in a roughly hemispherical shape, slightly asymmetric (wider left)
+    const defs = [
+      // Core
+      { x: 0.0,  y: 3.0, z: 0.0,  r: 0.85 },
+      { x: -0.15, y: 3.3, z: 0.1,  r: 0.70 },
+      { x: 0.2,  y: 2.85, z: -0.1, r: 0.65 },
+      // Left side (wider, like reference)
+      { x: -0.75, y: 2.7, z: 0.15, r: 0.70 },
+      { x: -0.55, y: 3.2, z: -0.2, r: 0.55 },
+      { x: -0.9,  y: 3.0, z: -0.1, r: 0.50 },
+      { x: -0.4,  y: 2.5, z: 0.4,  r: 0.55 },
+      // Right side
+      { x: 0.6,  y: 2.75, z: -0.15, r: 0.58 },
+      { x: 0.45, y: 3.15, z: 0.2,  r: 0.52 },
+      { x: 0.7,  y: 2.9, z: 0.3,  r: 0.42 },
+      // Front/back
+      { x: 0.1,  y: 2.6, z: 0.55, r: 0.50 },
+      { x: -0.2, y: 2.65, z: -0.55, r: 0.52 },
+      { x: 0.3,  y: 3.35, z: -0.3, r: 0.45 },
+      // Top
+      { x: 0.0,  y: 3.55, z: 0.05, r: 0.55 },
+      { x: -0.3, y: 3.5, z: -0.15, r: 0.42 },
+      { x: 0.2,  y: 3.45, z: 0.2,  r: 0.40 },
+      // Bottom filler
+      { x: -0.5, y: 2.4, z: -0.3, r: 0.45 },
+      { x: 0.4,  y: 2.45, z: 0.35, r: 0.42 },
     ];
 
-    for (const d of crownDefs) {
-      const geo = jitter(new THREE.IcosahedronGeometry(d.r, d.detail), d.r * 0.12);
-      paintFaces(geo, d.color, 0.06);
+    for (let i = 0; i < defs.length; i++) {
+      const d = defs[i];
+      const color = P.leaf[i % P.leaf.length];
+      const geo = jitter(new THREE.IcosahedronGeometry(d.r, 1), d.r * 0.1);
+      paintFaces(geo, color, 0.07);
       const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(d.x, d.y, d.z);
-      mesh.rotation.set(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
+      mesh.rotation.set(rand(0, 6.28), rand(0, 6.28), rand(0, 6.28));
       mesh.scale.setScalar(0);
-      this.sceneRoot.add(mesh);
+      this.root.add(mesh);
+
+      // Each blob has a unique normalized appear time spread smoothly across 0.15–0.80
+      const t = i / (defs.length - 1); // 0→1
       this.crownParts.push({
-        mesh, mat, appear: d.appear,
-        baseY: d.y, baseScale: 1,
-        phase: rand(0, Math.PI * 2),
+        mesh, baseY: d.y, baseScale: 1,
+        // Smooth continuous appear: bottom blobs first, top last
+        appear: 0.15 + t * 0.65,
+        phase: rand(0, 6.28),
       });
     }
   }
 
-  // ── Flowers & Fruits ──────────────────────────────────────────────────────
+  // ── Flowers ───────────────────────────────────────────────────────────────
 
-  _buildFlowersAndFruits() {
-    // Flowers — appear at 70%
-    const flowerColors = [PAL.flower1, PAL.flower2, PAL.flower3];
-    const flowerDefs = [
-      { x: 0.55, y: 3.1, z: 0.35 }, { x: -0.5, y: 3.2, z: -0.25 },
-      { x: 0.2,  y: 3.5, z: 0.4 },  { x: -0.35, y: 2.7, z: 0.55 },
-      { x: 0.6,  y: 2.6, z: -0.35 }, { x: -0.55, y: 2.9, z: 0.15 },
-      { x: 0.3,  y: 3.6, z: -0.15 }, { x: -0.15, y: 3.7, z: 0.3 },
-      { x: 0.45, y: 3.3, z: 0.45 },  { x: -0.6,  y: 2.6, z: -0.4 },
-      { x: 0.0,  y: 3.8, z: 0.0 },   { x: 0.7,   y: 2.8, z: 0.1 },
+  _buildFlowers() {
+    const positions = [
+      [0.55, 3.1, 0.35], [-0.5, 3.2, -0.25], [0.2, 3.5, 0.4],
+      [-0.35, 2.7, 0.55], [0.6, 2.6, -0.35], [-0.55, 2.9, 0.15],
+      [0.3, 3.6, -0.15], [-0.15, 3.7, 0.3], [0.45, 3.3, 0.45],
+      [-0.6, 2.6, -0.4], [0.0, 3.8, 0.0], [0.7, 2.8, 0.1],
     ];
-    for (let i = 0; i < flowerDefs.length; i++) {
-      const fd = flowerDefs[i];
-      // Small 5-petal flower = dodecahedron
-      const geo = new THREE.DodecahedronGeometry(0.08, 0);
-      const color = flowerColors[i % flowerColors.length];
-      const mat = new THREE.MeshLambertMaterial({
-        color, flatShading: true,
-        emissive: new THREE.Color(color), emissiveIntensity: 0.2,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(fd.x, fd.y, fd.z);
-      mesh.rotation.set(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
-      mesh.scale.setScalar(0);
-      this.sceneRoot.add(mesh);
-      this.flowers.push({ mesh, mat, appear: 0.70 + i * 0.018, phase: rand(0, Math.PI * 2) });
-    }
-
-    // Fruits — appear at 82%
-    const fruitColors = [PAL.fruit1, PAL.fruit2, PAL.fruit3];
-    const fruitDefs = [
-      { x: 0.4, y: 2.6, z: 0.3 }, { x: -0.45, y: 2.8, z: -0.2 },
-      { x: 0.15, y: 3.2, z: 0.5 }, { x: -0.3, y: 3.0, z: 0.4 },
-      { x: 0.55, y: 3.0, z: -0.15 }, { x: -0.5, y: 2.5, z: 0.3 },
-      { x: 0.0, y: 3.5, z: -0.3 }, { x: 0.35, y: 2.4, z: -0.45 },
-    ];
-    for (let i = 0; i < fruitDefs.length; i++) {
-      const fd = fruitDefs[i];
-      const geo = new THREE.SphereGeometry(0.06, 6, 5);
-      const color = fruitColors[i % fruitColors.length];
+    for (let i = 0; i < positions.length; i++) {
+      const [x, y, z] = positions[i];
+      const color = P.flower[i % P.flower.length];
+      const geo = new THREE.DodecahedronGeometry(0.07, 0);
       const mat = new THREE.MeshLambertMaterial({
         color, flatShading: true,
         emissive: new THREE.Color(color), emissiveIntensity: 0.15,
       });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(fd.x, fd.y, fd.z);
+      mesh.position.set(x, y, z);
+      mesh.rotation.set(rand(0, 6.28), rand(0, 6.28), rand(0, 6.28));
       mesh.scale.setScalar(0);
-      this.sceneRoot.add(mesh);
-      this.fruits.push({ mesh, mat, appear: 0.82 + i * 0.02, phase: rand(0, Math.PI * 2) });
+      this.root.add(mesh);
+      // Spread smoothly across 0.65–0.90
+      this.flowers.push({ mesh, mat, appear: 0.65 + (i / positions.length) * 0.25, phase: rand(0, 6.28) });
+    }
+  }
+
+  // ── Fruits ────────────────────────────────────────────────────────────────
+
+  _buildFruits() {
+    const positions = [
+      [0.4, 2.6, 0.3], [-0.45, 2.8, -0.2], [0.15, 3.2, 0.5],
+      [-0.3, 3.0, 0.4], [0.55, 3.0, -0.15], [-0.5, 2.5, 0.3],
+      [0.0, 3.5, -0.3], [0.35, 2.4, -0.45],
+    ];
+    for (let i = 0; i < positions.length; i++) {
+      const [x, y, z] = positions[i];
+      const color = P.fruit[i % P.fruit.length];
+      const geo = new THREE.SphereGeometry(0.055, 6, 5);
+      const mat = new THREE.MeshLambertMaterial({
+        color, flatShading: true,
+        emissive: new THREE.Color(color), emissiveIntensity: 0.1,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.scale.setScalar(0);
+      this.root.add(mesh);
+      // Spread smoothly across 0.78–0.96
+      this.fruits.push({ mesh, mat, appear: 0.78 + (i / positions.length) * 0.18, phase: rand(0, 6.28) });
     }
   }
 
   // ── Fireflies ─────────────────────────────────────────────────────────────
 
   _buildFireflies() {
-    const mat = new THREE.MeshBasicMaterial({
-      color: PAL.firefly, transparent: true, opacity: 0,
-    });
-
     for (let i = 0; i < 20; i++) {
-      const geo = new THREE.SphereGeometry(0.03, 4, 3);
-      const mesh = new THREE.Mesh(geo, mat.clone());
-
-      const angle = rand(0, Math.PI * 2);
-      const dist = rand(0.8, 2.2);
-      const y = rand(1.0, 4.0);
-      mesh.position.set(Math.cos(angle) * dist, y, Math.sin(angle) * dist);
-      this.sceneRoot.add(mesh);
-
+      const geo = new THREE.SphereGeometry(0.028, 4, 3);
+      const mat = new THREE.MeshBasicMaterial({ color: P.firefly, transparent: true, opacity: 0 });
+      const mesh = new THREE.Mesh(geo, mat);
+      const a = rand(0, 6.28), d = rand(0.7, 2.5), y = rand(1.0, 4.2);
+      mesh.position.set(Math.cos(a) * d, y, Math.sin(a) * d);
+      this.root.add(mesh);
       this.fireflies.push({
-        mesh,
-        baseAngle: angle,
-        baseDist: dist,
-        baseY: y,
-        speed: rand(0.3, 0.8),
-        floatSpeed: rand(0.5, 1.2),
-        floatAmp: rand(0.2, 0.5),
-        phase: rand(0, Math.PI * 2),
-        blinkPhase: rand(0, Math.PI * 2),
-        blinkSpeed: rand(1.5, 4.0),
+        mesh, angle: a, dist: d, baseY: y,
+        speed: rand(0.2, 0.6), floatSpd: rand(0.4, 1.0), floatAmp: rand(0.15, 0.45),
+        phase: rand(0, 6.28), blinkPhase: rand(0, 6.28), blinkSpd: rand(1.5, 3.5),
       });
     }
   }
 
-  // ── Sparkle Burst (milestone reward) ──────────────────────────────────────
+  // ── Sparkles ──────────────────────────────────────────────────────────────
 
   _buildSparkles() {
-    const mat = new THREE.MeshBasicMaterial({
-      color: PAL.sparkle, transparent: true, opacity: 0,
-    });
-
     for (let i = 0; i < 30; i++) {
-      const geo = new THREE.SphereGeometry(0.025, 4, 3);
-      const mesh = new THREE.Mesh(geo, mat.clone());
-      mesh.position.set(0, 2, 0);
+      const geo = new THREE.SphereGeometry(0.022, 4, 3);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+      const mesh = new THREE.Mesh(geo, mat);
       mesh.visible = false;
-      this.sceneRoot.add(mesh);
-      this.sparkles.push({
-        mesh,
-        vel: new THREE.Vector3(),
-        life: 0,
-        maxLife: 0,
-      });
+      this.root.add(mesh);
+      this.sparkles.push({ mesh, vel: new THREE.Vector3(), life: 0, maxLife: 0 });
     }
   }
 
-  _triggerBurst(y) {
+  _burst(y) {
+    const colors = [0xffffff, 0xfff59d, 0xff80ab, 0xce93d8, 0x81c784, 0xffab91];
     for (const s of this.sparkles) {
       s.mesh.visible = true;
-      s.mesh.position.set(rand(-0.3, 0.3), y + rand(-0.2, 0.2), rand(-0.3, 0.3));
-      s.vel.set(rand(-2, 2), rand(1, 4), rand(-2, 2));
-      s.life = 0;
-      s.maxLife = rand(0.6, 1.2);
+      s.mesh.position.set(rand(-0.3, 0.3), y + rand(-0.3, 0.3), rand(-0.3, 0.3));
+      s.vel.set(rand(-2.5, 2.5), rand(1.5, 5), rand(-2.5, 2.5));
+      s.life = 0; s.maxLife = rand(0.5, 1.3);
       s.mesh.material.opacity = 1;
-      s.mesh.material.color.setHex(
-        [0xffffff, 0xfde68a, 0xff8aac, 0xc084fc, 0x5cba6f][Math.floor(rand(0, 5))]
-      );
+      s.mesh.material.color.setHex(colors[Math.floor(rand(0, colors.length))]);
     }
   }
 
@@ -488,211 +415,153 @@ export class FocusTree {
     this.resizeObs = new ResizeObserver(() => this._onResize());
     this.resizeObs.observe(this.container);
   }
-
   _onResize() {
     if (!this.container || !this.renderer || !this.camera) return;
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight || 1;
+    const w = this.container.clientWidth, h = this.container.clientHeight || 1;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
   }
 
-  // ── Animation Loop ────────────────────────────────────────────────────────
+  // ── Animation ─────────────────────────────────────────────────────────────
 
   _animate() {
     this.animId = requestAnimationFrame(() => this._animate());
     const dt = this.clock.getDelta();
     const t = this.clock.getElapsedTime();
 
-    // Smooth progress lerp
-    this._currentProgress = lerp(this._currentProgress, this._targetProgress, Math.min(1, dt * 2.5));
+    // Smooth continuous progress — never jumpy
+    this._currentProgress = lerp(this._currentProgress, this._targetProgress, Math.min(1, dt * 2.0));
     const p = this._currentProgress;
 
-    // Check milestones for burst
-    const milestone = Math.floor(p * 10); // every 10%
-    if (milestone > this._prevMilestone && milestone > 0) {
-      this._prevMilestone = milestone;
-      this._triggerBurst(lerp(1.0, 3.5, p));
+    // Milestone sparkle bursts every 10%
+    const ms = Math.floor(p * 10);
+    if (ms > this._prevMilestone && ms > 0) {
+      this._prevMilestone = ms;
+      this._burst(lerp(1.0, 3.5, p));
     }
 
-    this._updateCamera(p, t);
-    this._updateGrass(p, t);
-    this._updateSprout(p, t);
-    this._updateTrunk(p, t);
-    this._updateCrown(p, t);
-    this._updateFlowers(p, t);
-    this._updateFruits(p, t);
-    this._updateFireflies(p, t, dt);
-    this._updateSparkles(dt);
-    this._updateGlow(p, t);
+    this._camUpdate(p, t);
+    this._grassUpdate(t);
+    this._sproutUpdate(p, t);
+    this._trunkUpdate(p);
+    this._crownUpdate(p, t);
+    this._flowerUpdate(p, t);
+    this._fruitUpdate(p, t);
+    this._fireflyUpdate(p, t, dt);
+    this._sparkleUpdate(dt);
+    this._glowUpdate(p, t);
 
     this.renderer.render(this.scene, this.camera);
   }
 
-  // ── Per-Frame Updates ─────────────────────────────────────────────────────
+  // ── Smooth updates (no stages — everything is a continuous function of p) ─
 
-  _updateCamera(p, t) {
-    // Orbit gently around the tree
-    const orbitAngle = t * 0.15;
-    const dist = lerp(4.5, 6.5, smoothstep(0.0, 0.5, p));
-    const height = lerp(2.0, 4.5, smoothstep(0.0, 0.5, p));
-    const lookY = lerp(0.5, 2.0, smoothstep(0.0, 0.5, p));
-
-    this.camera.position.set(
-      Math.sin(orbitAngle) * dist,
-      height,
-      Math.cos(orbitAngle) * dist
-    );
+  _camUpdate(p, t) {
+    const angle = t * 0.12;
+    // Continuous zoom: close at p=0, pulls back as tree grows
+    const dist = lerp(3.8, 6.5, p);
+    const camY = lerp(1.8, 4.2, p);
+    const lookY = lerp(0.4, 2.2, p);
+    this.camera.position.set(Math.sin(angle) * dist, camY, Math.cos(angle) * dist);
     this.camera.lookAt(0, lookY, 0);
   }
 
-  _updateGrass(p, t) {
+  _grassUpdate(t) {
     for (const g of this.grassBlades) {
-      // Gentle wave sway
-      const sway = Math.sin(t * g.speed + g.phase) * 0.08;
-      g.mesh.rotation.z = g.baseRotZ + sway;
-
-      // Grow slightly with progress
-      const grow = lerp(0.7, 1.0, smoothstep(0.0, 0.3, p));
-      g.mesh.scale.setScalar(grow);
+      g.mesh.rotation.z = g.baseRotZ + Math.sin(t * g.speed + g.phase) * 0.07;
     }
   }
 
-  _updateSprout(p, t) {
-    // Appears at 0%, fades by 25%
-    const appear = smoothstep(0.0, 0.03, p);
-    const fade = 1 - smoothstep(0.18, 0.32, p);
-    const s = Math.max(1.5, 1.5 * appear) * fade;
+  _sproutUpdate(p, t) {
+    // Smooth: fully visible at p=0, shrinks continuously to 0 by p=0.3
+    const s = clamp(1.5 * (1 - p / 0.3), 0, 1.5);
     this.sprout.scale.setScalar(s);
-    this.sprout.rotation.z = Math.sin(t * 2.2) * 0.1 * s;
-    // Subtle bounce
-    this.sprout.position.y = Math.sin(t * 3.0) * 0.01 * s;
+    this.sprout.rotation.z = Math.sin(t * 2.2) * 0.08 * s;
+    this.sprout.position.y = Math.sin(t * 2.8) * 0.008 * s;
   }
 
-  _updateTrunk(p, t) {
-    for (const tp of this.trunkParts) {
-      const s = smoothstep(tp.appear, tp.appear + 0.15, p) * tp.targetScale;
-      tp.mesh.scale.setScalar(s);
-
-      // Branches sway
-      if (tp.angleZ !== undefined && s > 0.01) {
-        tp.mesh.rotation.z = tp.angleZ + Math.sin(t * 2.0 + tp.phase) * 0.04 * s;
-      }
-    }
+  _trunkUpdate(p) {
+    // Smooth continuous growth: starts at p=0.05, full at p=0.55
+    const s = smoothstep(0.05, 0.55, p);
+    // Width also grows
+    const w = lerp(0.3, 1.0, smoothstep(0.05, 0.6, p));
+    this.trunk.scale.set(w, s, w);
   }
 
-  _updateCrown(p, t) {
+  _crownUpdate(p, t) {
     for (const cp of this.crownParts) {
-      const s = smoothstep(cp.appear, cp.appear + 0.15, p) * cp.baseScale;
+      // Each blob smoothly grows over its own range (spread = 0.12)
+      const raw = smoothstep(cp.appear, cp.appear + 0.12, p);
+      // Breathing pulse
+      const breath = 1 + Math.sin(t * 1.2 + cp.phase) * 0.025;
+      const s = raw * breath;
       cp.mesh.scale.setScalar(s);
-
-      if (s > 0.01) {
-        // Gentle bob
-        cp.mesh.position.y = cp.baseY + Math.sin(t * 0.9 + cp.phase) * 0.03 * s;
-        // Slow rotate
-        cp.mesh.rotation.y += 0.002 * s;
-
-        // Breathing scale (ADHD dopamine — subtle size pulse)
-        const breath = 1 + Math.sin(t * 1.5 + cp.phase) * 0.03;
-        cp.mesh.scale.setScalar(s * breath);
+      // Gentle bob
+      if (s > 0.001) {
+        cp.mesh.position.y = cp.baseY + Math.sin(t * 0.7 + cp.phase) * 0.02 * s;
+        cp.mesh.rotation.y += 0.0015 * s;
       }
     }
   }
 
-  _updateFlowers(p, t) {
+  _flowerUpdate(p, t) {
     for (const f of this.flowers) {
-      const s = smoothstep(f.appear, f.appear + 0.05, p);
-      // Pop-in with overshoot
-      const overshoot = s > 0 && s < 1 ? 1 + Math.sin(s * Math.PI) * 0.3 : 1;
-      const pulse = 1 + Math.sin(t * 3.0 + f.phase) * 0.15 * s;
-      f.mesh.scale.setScalar(s * pulse * overshoot);
-      f.mesh.rotation.y += 0.015 * s;
-
-      // Emissive pulse for glow
-      if (f.mat.emissive) {
-        f.mat.emissiveIntensity = lerp(0.2, 0.6, (Math.sin(t * 2.5 + f.phase) + 1) * 0.5) * s;
-      }
+      const raw = smoothstep(f.appear, f.appear + 0.06, p);
+      const pulse = 1 + Math.sin(t * 2.8 + f.phase) * 0.12 * raw;
+      f.mesh.scale.setScalar(raw * pulse);
+      f.mesh.rotation.y += 0.012 * raw;
+      if (f.mat.emissive) f.mat.emissiveIntensity = lerp(0.15, 0.5, (Math.sin(t * 2 + f.phase) + 1) * 0.5) * raw;
     }
   }
 
-  _updateFruits(p, t) {
+  _fruitUpdate(p, t) {
     for (const fr of this.fruits) {
-      const s = smoothstep(fr.appear, fr.appear + 0.04, p);
-      // Juicy bounce-in
-      const bounce = s > 0 && s < 1 ? 1 + Math.sin(s * Math.PI) * 0.5 : 1;
-      const dangle = Math.sin(t * 1.8 + fr.phase) * 0.06 * s;
-      fr.mesh.scale.setScalar(s * bounce);
-      fr.mesh.position.y += dangle * 0.01;
-
-      if (fr.mat.emissive) {
-        fr.mat.emissiveIntensity = lerp(0.15, 0.45, (Math.sin(t * 2.0 + fr.phase) + 1) * 0.5) * s;
-      }
+      const raw = smoothstep(fr.appear, fr.appear + 0.05, p);
+      const dangle = Math.sin(t * 1.6 + fr.phase) * 0.008 * raw;
+      fr.mesh.scale.setScalar(raw);
+      fr.mesh.position.y += dangle;
+      if (fr.mat.emissive) fr.mat.emissiveIntensity = lerp(0.1, 0.35, (Math.sin(t * 1.8 + fr.phase) + 1) * 0.5) * raw;
     }
   }
 
-  _updateFireflies(p, t, dt) {
-    const fireflyAppear = smoothstep(0.50, 0.60, p);
-    if (fireflyAppear <= 0) return;
-
+  _fireflyUpdate(p, t, dt) {
+    // Smooth fade-in starting at p=0.45
+    const vis = smoothstep(0.45, 0.55, p);
+    if (vis <= 0) return;
     for (const ff of this.fireflies) {
-      // Orbit around tree
-      ff.baseAngle += ff.speed * dt;
-      const x = Math.cos(ff.baseAngle) * ff.baseDist;
-      const z = Math.sin(ff.baseAngle) * ff.baseDist;
-      const y = ff.baseY + Math.sin(t * ff.floatSpeed + ff.phase) * ff.floatAmp;
-      ff.mesh.position.set(x, y, z);
-
-      // Blink
-      const blink = (Math.sin(t * ff.blinkSpeed + ff.blinkPhase) + 1) * 0.5;
-      const glow = blink * blink; // Ease-in for snappier blink
-      ff.mesh.material.opacity = fireflyAppear * glow * 0.9;
-
-      // Size pulse
-      const size = lerp(0.6, 1.2, glow);
-      ff.mesh.scale.setScalar(size * fireflyAppear);
-
-      // Color shift — warm yellow to green
-      ff.mesh.material.color.lerpColors(
-        new THREE.Color(PAL.firefly),
-        new THREE.Color(0xbbffbb),
-        blink * 0.3
+      ff.angle += ff.speed * dt;
+      ff.mesh.position.set(
+        Math.cos(ff.angle) * ff.dist,
+        ff.baseY + Math.sin(t * ff.floatSpd + ff.phase) * ff.floatAmp,
+        Math.sin(ff.angle) * ff.dist
       );
+      const blink = Math.pow((Math.sin(t * ff.blinkSpd + ff.blinkPhase) + 1) * 0.5, 2);
+      ff.mesh.material.opacity = vis * blink * 0.85;
+      ff.mesh.scale.setScalar(lerp(0.5, 1.3, blink) * vis);
     }
   }
 
-  _updateSparkles(dt) {
+  _sparkleUpdate(dt) {
     for (const s of this.sparkles) {
-      if (s.life >= s.maxLife) {
-        s.mesh.visible = false;
-        continue;
-      }
+      if (s.life >= s.maxLife) { s.mesh.visible = false; continue; }
       s.life += dt;
-      const t = s.life / s.maxLife;
-
-      // Physics
-      s.vel.y -= 6 * dt; // gravity
+      s.vel.y -= 7 * dt;
       s.mesh.position.addScaledVector(s.vel, dt);
-
-      // Fade + shrink
+      const t = s.life / s.maxLife;
       s.mesh.material.opacity = 1 - t;
-      s.mesh.scale.setScalar(lerp(1.0, 0.2, t));
+      s.mesh.scale.setScalar(lerp(1.0, 0.15, t));
     }
   }
 
-  _updateGlow(p, t) {
+  _glowUpdate(p, t) {
     if (!this.glowLight) return;
-    // Intensity ramps up with progress
-    const base = smoothstep(0.2, 0.8, p) * 1.8;
-    const pulse = 1 + Math.sin(t * 1.5) * 0.12;
-    this.glowLight.intensity = base * pulse;
-    this.glowLight.position.y = lerp(1.0, 3.0, smoothstep(0.15, 0.6, p));
-
-    // Color: green → warm golden → purple-ish at bloom
-    const bloom = smoothstep(0.80, 1.0, p);
-    const mid = smoothstep(0.40, 0.80, p);
-    this.glowLight.color.set(0x5cba6f);
-    if (mid > 0) this.glowLight.color.lerp(new THREE.Color(0xfbbf24), mid * 0.5);
-    if (bloom > 0) this.glowLight.color.lerp(new THREE.Color(0xc084fc), bloom * 0.4);
+    const base = p * 2.0;
+    this.glowLight.intensity = base * (1 + Math.sin(t * 1.3) * 0.1);
+    this.glowLight.position.y = lerp(1, 3.2, p);
+    const c = new THREE.Color(0x66bb6a);
+    if (p > 0.5) c.lerp(new THREE.Color(0xfff176), (p - 0.5) * 0.6);
+    if (p > 0.8) c.lerp(new THREE.Color(0xce93d8), (p - 0.8) * 2);
+    this.glowLight.color.copy(c);
   }
 }
