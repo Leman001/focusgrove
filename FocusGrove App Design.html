@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusGrove — Modern App Design v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   FocusGrove v2 — Modern Design Tokens
+   ============================================================ */
+:root {
+  /* Modern color palette */
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #818cf8;
+  --accent: #ec4899;
+  --accent-light: #f472b6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  
+  /* Backgrounds */
+  --bg-base: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-elevated: #1e293b;
+  
+  /* Cards & Surfaces */
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --surface-hover: #475569;
+  
+  /* Text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  
+  /* Borders & Lines */
+  --border: rgba(148, 163, 184, 0.2);
+  --border-light: rgba(148, 163, 184, 0.1);
+  
+  /* Radius */
+  --r-xl: 24px;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --r-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg-base);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   Gallery Layout
+   ============================================================ */
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 64px 48px;
+  justify-content: center;
+  padding: 80px 40px 120px;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.slot__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding-left: 4px;
+}
+
+.slot__label b {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* ============================================================
+   Phone Frame
+   ============================================================ */
+.phone {
+  width: 384px;
+  height: 832px;
+  border-radius: 52px;
+  position: relative;
+  background: linear-gradient(135deg, #1a1f35, #0f172a);
+  padding: 12px;
+  box-shadow: 0 60px 120px rgba(0, 0, 0, 0.7), 
+              0 0 0 1px rgba(255, 255, 255, 0.1),
+              inset 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+  border-radius: 42px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+}
+
+.screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.1), transparent 60%),
+              radial-gradient(circle at 50% 120%, rgba(236, 72, 153, 0.05), transparent 70%);
+}
+
+.island {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 28px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  z-index: 30;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px 4px;
+  position: relative;
+  z-index: 5;
+  font-size: 13px;
+}
+
+.statusbar .time {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.statusbar svg {
+  display: block;
+  opacity: 0.8;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  padding: 8px 20px 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-track { background: transparent; }
+.content::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 2px; }
+
+/* ============================================================
+   Primitives
+   ============================================================ */
+.card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+.card-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.h1 {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.h2 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.num {
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 56px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-full);
+  font: 600 16px/1 'Inter', sans-serif;
+  letter-spacing: -0.01em;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.4);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn--ghost {
+  background: var(--surface);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.btn--ghost:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.btn--accent {
+  background: linear-gradient(135deg, var(--accent) 0%, #d1439e 100%);
+  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.3);
+}
+
+.btn--accent:hover {
+  box-shadow: 0 12px 32px rgba(236, 72, 153, 0.4);
+}
+
+.btn--success {
+  background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+}
+
+.btn-sm {
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Chips & Tags
+   ============================================================ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-sm);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  background: var(--surface-2);
+  border-color: var(--primary);
+}
+
+.chip.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.chip .chev {
+  color: var(--text-muted);
+  display: flex;
+}
+
+/* ============================================================
+   Avatar
+   ============================================================ */
+.avatar {
+  border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar i {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+/* ============================================================
+   Navigation (Bottom)
+   ============================================================ */
+.nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 20px;
+  z-index: 40;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.nav__item {
+  width: 48px;
+  height: 44px;
+  border-radius: var(--r-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.nav__item:hover {
+  color: var(--text-secondary);
+}
+
+.nav__item.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+  width: 56px;
+}
+
+.nav__item.active.accent {
+  background: var(--accent);
+  box-shadow: 0 8px 20px rgba(236, 72, 153, 0.4);
+}
+
+/* ============================================================
+   Dial/Circle Progress
+   ============================================================ */
+.dial {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dial .plate {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.1), transparent 60%);
+  box-shadow: inset 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.dial .disc {
+  position: absolute;
+  width: 84%;
+  height: 84%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+  box-shadow: inset 0 8px 24px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.dial .ticks {
+  position: absolute;
+  width: 78%;
+  height: 78%;
+}
+
+.dial .center {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.dial .center .big {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.dial .center .sub {
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+/* ============================================================
+   Segmented Control
+   ============================================================ */
+.seg {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: var(--r-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.seg span {
+  padding: 8px 16px;
+  border-radius: var(--r-full);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.seg span.on {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* ============================================================
+   Toggle Switch
+   ============================================================ */
+.toggle {
+  width: 48px;
+  height: 28px;
+  border-radius: var(--r-full);
+  padding: 2px;
+  display: flex;
+  background: var(--surface-2);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.toggle.on {
+  background: var(--success);
+  justify-content: flex-end;
+}
+
+.toggle.on b {
+  background: white;
+}
+
+.toggle.off {
+  justify-content: flex-start;
+}
+
+.toggle b {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+/* ============================================================
+   Progress Bar
+   ============================================================ */
+.track {
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+.track i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  transition: width 0.3s ease;
+}
+
+/* ============================================================
+   Rows/List Items
+   ============================================================ */
+.srow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.2s ease;
+}
+
+.srow:last-child {
+  border-bottom: none;
+}
+
+.srow:hover {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.srow .ic {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.srow .nm {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.srow .val {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.srow .val .chev {
+  color: var(--text-subtle);
+  display: flex;
+}
+
+.glabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  margin: 24px 4px 12px;
+}
+
+/* ============================================================
+   Utility Classes
+   ============================================================ */
+.row {
+  display: flex;
+}
+
+.between {
+  justify-content: space-between;
+}
+
+.center-x {
+  align-items: center;
+}
+
+.grow {
+  flex: 1;
+}
+
+.mt-auto {
+  margin-top: auto;
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.success {
+  color: var(--success);
+}
+
+.warning {
+  color: var(--warning);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.gap-4 {
+  gap: 16px;
+}
+
+.gap-3 {
+  gap: 12px;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="gallery">
+
+  <!-- ============================================================
+       DASHBOARD  — Home Screen (Redesigned)
+       ============================================================ -->
+  <div class="slot">
+    <div class="slot__label"><b>Dashboard</b> · Home v2</div>
+    <div class="phone"><div class="screen">
+      <div class="island"></div>
+      <div class="statusbar"><span class="time">9:41</span><span data-statusicons></span></div>
+      <div class="content">
+        <!-- Header -->
+        <div class="row between center-x" style="margin-top: 12px; margin-bottom: 24px;">
+          <div>
+            <div class="eyebrow">Good morning</div>
+            <div class="h1" style="font-size: 28px; margin-top: 6px;">Ready to focus?</div>
+          </div>
+          <div class="avatar" style="width: 48px; height: 48px;"><i data-face></i></div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="gap-3" style="margin-bottom: 28px;">
+          <div class="row gap-3">
+            <div class="card grow" style="padding: 14px 16px;">
+              <div class="eyebrow">Today</div>
+              <div class="num" style="font-size: 20px; font-weight: 700; margin-top: 6px; color: var(--primary);">6h 35m</div>
+            </div>
+            <div class="card grow" style="padding: 14px 16px;">
+              <div class="eyebrow">Streak</div>
+              <div class="num" style="font-size: 20px; font-weight: 700; margin-top: 6px; color: var(--success);">24 days</div>
+            </div>
+          </div>
+          <div class="card" style="padding: 14px 16px;">
+            <div class="eyebrow">Balance</div>
+            <div class="num accent" style="font-size: 20px; font-weight: 700; margin-top: 6px;">1,240 min</div>
+          </div>
+        </div>
+
+        <!-- Main Dial -->
+        <div class="grow" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; margin-bottom: 24px;">
+          <div class="dial" style="width: 240px; height: 240px;" data-dial data-fraction="0.42">
+            <div class="plate"></div>
+            <div class="disc"></div>
+            <svg class="ticks" viewBox="0 0 100 100"></svg>
+            <div class="center" style="z-index: 2; width: 36%; height: 36%; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.3);">
+              <span class="num" style="font-size: 36px; font-weight: 700; color: var(--primary);">25</span>
+              <span style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-top: 4px; font-weight: 600;">min</span>
+            </div>
+          </div>
+          <div class="chip active" style="background: var(--primary); color: white; border-color: var(--primary);">
+            <span>Focus Session</span>
+            <b class="num" style="font-weight: 700;">25:00</b>
+          </div>
+        </div>
+
+        <!-- Start Button -->
+        <div style="padding-bottom: 96px;">
+          <button class="btn btn--accent">Start Focus Session</button>
+        </div>
+      </div>
+      <!-- Navigation -->
+      <nav class="nav">
+        <div class="nav__item active" data-ic="home"></div>
+        <div class="nav__item" data-ic="focus"></div>
+        <div class="nav__item" data-ic="gift"></div>
+        <div class="nav__item" data-ic="cog"></div>
+      </nav>
+    </div></div>
+  </div>
+
+  <!-- ============================================================
+       FOCUS MODE  — Active Session (Redesigned)
+       ============================================================ -->
+  <div class="slot">
+    <div class="slot__label"><b>Focus Mode</b> · Active v2</div>
+    <div class="phone"><div class="screen">
+      <div class="island"></div>
+      <div class="statusbar"><span class="time">9:41</span><span data-statusicons></span></div>
+      <div class="content" style="padding: 16px 20px 30px;">
+        
+        <!-- Timer Mode Toggle -->
+        <div class="row" style="justify-content: center; margin-bottom: 24px; gap: 8px;">
+          <div class="seg">
+            <span class="on">Countdown</span>
+            <span>Count up</span>
+          </div>
+        </div>
+
+        <!-- Large Timer Display -->
+        <div class="grow" style="display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+          <div class="dial" style="width: 280px; height: 280px;" data-dial data-fraction="0.42">
+            <div class="plate"></div>
+            <div class="disc"></div>
+            <svg class="ticks" viewBox="0 0 100 100"></svg>
+            <div class="center">
+              <div class="big num" style="font-size: 48px;">18:24</div>
+              <div class="sub" style="font-size: 13px;">of 25:00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Earning Info -->
+        <div class="card" style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; background: rgba(16, 185, 129, 0.1); border-color: var(--success);">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--success); font-weight: 600;">
+            <span data-ic-inline="coin" style="color: var(--success);"></span>Earning
+          </span>
+          <span class="num" style="color: var(--success); font-weight: 700; font-size: 16px;">+25 min</span>
+        </div>
+
+        <!-- Progress Track -->
+        <div style="margin-bottom: 20px;">
+          <div class="row between" style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;">
+            <span>0%</span>
+            <span class="num" style="color: var(--primary); font-weight: 700;">42%</span>
+            <span>100%</span>
+          </div>
+          <div class="track"><i style="width: 42%;"></i></div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="row gap-3" style="margin-top: 24px;">
+          <button class="btn btn--ghost grow" style="height: 54px;">End early</button>
+          <button class="btn grow" style="height: 54px;">Pause</button>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============================================================
+       REWARDS STORE  — Marketplace (Redesigned)
+       ============================================================ -->
+  <div class="slot">
+    <div class="slot__label"><b>Rewards Store</b> · Marketplace v2</div>
+    <div class="phone"><div class="screen">
+      <div class="island"></div>
+      <div class="statusbar"><span class="time">9:41</span><span data-statusicons></span></div>
+      <div class="content">
+        
+        <!-- Header -->
+        <div class="row between center-x" style="margin-top: 12px; margin-bottom: 20px;">
+          <div class="h2" style="font-size: 26px;">Rewards</div>
+          <div style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: var(--r-full); background: var(--primary); color: white; box-shadow: var(--shadow-md);">
+            <span style="display: flex;" data-ic-inline="coin"></span>
+            <span class="num" style="font-weight: 700; font-size: 15px;">1,240</span>
+          </div>
+        </div>
+
+        <!-- Reward Cards Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+          
+          <!-- Coffee Break -->
+          <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px;">
+            <div class="rico" style="--tint: rgba(236, 72, 153, 0.15);">☕</div>
+            <div style="font-size: 14px; font-weight: 700;">Coffee</div>
+            <div class="row between" style="width: 100%; align-items: center;">
+              <span class="num text-muted" style="font-size: 13px; font-weight: 600;">60 min</span>
+              <button class="btn-sm" style="padding: 0 12px; background: var(--primary); color: white; border: none; border-radius: var(--r-full);">Claim</button>
+            </div>
+          </div>
+
+          <!-- Game Hour -->
+          <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px;">
+            <div class="rico" style="--tint: rgba(99, 102, 241, 0.15);">🎮</div>
+            <div style="font-size: 14px; font-weight: 700;">Game Hour</div>
+            <div class="row between" style="width: 100%; align-items: center;">
+              <span class="num text-muted" style="font-size: 13px; font-weight: 600;">240 min</span>
+              <button class="btn-sm" style="padding: 0 12px; background: var(--primary); color: white; border: none; border-radius: var(--r-full);">Claim</button>
+            </div>
+          </div>
+
+          <!-- Movie Night -->
+          <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px;">
+            <div class="rico" style="--tint: rgba(245, 158, 11, 0.15);">🎬</div>
+            <div style="font-size: 14px; font-weight: 700;">Movie Night</div>
+            <div class="row between" style="width: 100%; align-items: center;">
+              <span class="num text-muted" style="font-size: 13px; font-weight: 600;">90 min</span>
+              <button class="btn-sm" style="padding: 0 12px; background: var(--primary); color: white; border: none; border-radius: var(--r-full);">Claim</button>
+            </div>
+          </div>
+
+          <!-- Spa Day (Locked) -->
+          <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; opacity: 0.6;">
+            <div class="rico" style="--tint: rgba(16, 185, 129, 0.15);">🧖</div>
+            <div style="font-size: 14px; font-weight: 700;">Spa Day</div>
+            <div class="row between" style="width: 100%; align-items: center;">
+              <span class="num text-muted" style="font-size: 13px; font-weight: 600;">1,500 min</span>
+              <span style="font-size: 12px; font-weight: 600; color: var(--warning);">Need 260</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Section -->
+        <div>
+          <div class="glabel">Recently Claimed</div>
+          <div class="card" style="padding: 0; overflow: hidden;">
+            <div class="srow">
+              <div class="ic" style="border-radius: 50%; background: transparent; font-size: 20px;">🎮</div>
+              <div class="grow">
+                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Game Hour</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Yesterday</div>
+              </div>
+              <span class="num" style="font-size: 14px; font-weight: 700; color: var(--warning);">−240</span>
+            </div>
+            <div class="srow">
+              <div class="ic" style="border-radius: 50%; background: transparent; font-size: 20px;">☕</div>
+              <div class="grow">
+                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Coffee Break</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Mon, 9:12 AM</div>
+              </div>
+              <span class="num" style="font-size: 14px; font-weight: 700; color: var(--warning);">−60</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-auto"></div>
+      </div>
+
+      <!-- Floating Action Button -->
+      <div style="position: absolute; right: 20px; bottom: 96px; width: 56px; height: 56px; border-radius: 50%; z-index: 39; background: linear-gradient(135deg, var(--accent), #d1439e); color: white; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-lg); cursor: pointer; transition: all 0.2s ease;" data-ic-inline="plus" style=""></div>
+
+      <nav class="nav">
+        <div class="nav__item" data-ic="home"></div>
+        <div class="nav__item" data-ic="focus"></div>
+        <div class="nav__item active accent" data-ic="gift"></div>
+        <div class="nav__item" data-ic="cog"></div>
+      </nav>
+    </div></div>
+  </div>
+
+  <!-- ============================================================
+       SETTINGS  — Configuration (Redesigned)
+       ============================================================ -->
+  <div class="slot">
+    <div class="slot__label"><b>Settings</b> · Configuration v2</div>
+    <div class="phone"><div class="screen">
+      <div class="island"></div>
+      <div class="statusbar"><span class="time">9:41</span><span data-statusicons></span></div>
+      <div class="content">
+        
+        <div class="h2" style="font-size: 26px; margin-top: 12px; margin-bottom: 20px;">Settings</div>
+
+        <!-- Profile Card -->
+        <div class="card-elevated" style="margin-bottom: 20px; padding: 14px; display: flex; align-items: center; gap: 12px;">
+          <div class="avatar" style="width: 52px; height: 52px;"><i data-face></i></div>
+          <div class="grow">
+            <div style="font-size: 16px; font-weight: 700;">Sumaiya</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">🔥 24-day streak</div>
+          </div>
+          <span class="chev" data-chev style="color: var(--primary);"></span>
+        </div>
+
+        <!-- Session Settings -->
+        <div class="glabel">Session</div>
+        <div class="card" style="padding: 0; margin-bottom: 16px; overflow: hidden;">
+          <div class="srow">
+            <div class="ic" data-ic-inline="clock"></div>
+            <div class="nm">Default duration</div>
+            <span class="val">25 min <span class="chev" data-chev></span></span>
+          </div>
+          <div class="srow">
+            <div class="ic" data-ic-inline="focus"></div>
+            <div class="nm">Timer mode</div>
+            <span class="val">Countdown <span class="chev" data-chev></span></span>
+          </div>
+        </div>
+
+        <!-- Preferences -->
+        <div class="glabel">Preferences</div>
+        <div class="card" style="padding: 0; margin-bottom: 16px; overflow: hidden;">
+          <div class="srow">
+            <div class="ic" style="font-size: 18px;">🌐</div>
+            <div class="nm">Language</div>
+            <span class="val">English <span class="chev" data-chev></span></span>
+          </div>
+          <div class="srow">
+            <div class="ic" data-ic-inline="bolt"></div>
+            <div class="nm">Strict mode</div>
+            <div class="toggle on"><b></b></div>
+          </div>
+          <div class="srow">
+            <div class="ic" style="font-size: 18px;">🔔</div>
+            <div class="nm">Notifications</div>
+            <div class="toggle on"><b></b></div>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="glabel">Danger Zone</div>
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div class="srow" style="cursor: pointer; transition: all 0.2s ease;">
+            <div class="ic" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);" data-ic-inline="trash"></div>
+            <div class="nm" style="color: var(--danger);">Clear all data</div>
+            <span class="chev" data-chev style="color: var(--danger);"></span>
+          </div>
+        </div>
+
+        <div class="mt-auto"></div>
+      </div>
+
+      <nav class="nav">
+        <div class="nav__item" data-ic="home"></div>
+        <div class="nav__item" data-ic="focus"></div>
+        <div class="nav__item" data-ic="gift"></div>
+        <div class="nav__item active" data-ic="cog"></div>
+      </nav>
+    </div></div>
+  </div>
+
+  <!-- ============================================================
+       NEW: ACHIEVEMENTS  — Progress & Badges (New Screen)
+       ============================================================ -->
+  <div class="slot">
+    <div class="slot__label"><b>Achievements</b> · New Feature</div>
+    <div class="phone"><div class="screen">
+      <div class="island"></div>
+      <div class="statusbar"><span class="time">9:41</span><span data-statusicons></span></div>
+      <div class="content">
+        
+        <div class="h2" style="font-size: 26px; margin-top: 12px; margin-bottom: 6px;">Achievements</div>
+        <div class="label" style="margin-bottom: 20px;">Keep pushing to unlock more!</div>
+
+        <!-- Achievement Cards -->
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+          
+          <!-- Unlocked: Focus Master -->
+          <div class="card" style="padding: 14px; border: 1px solid var(--success); background: rgba(16, 185, 129, 0.05);">
+            <div style="display: flex; gap: 12px;">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--success), #059669); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px;">🏆</div>
+              <div class="grow">
+                <div style="font-size: 14px; font-weight: 700; color: var(--success);">Focus Master</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">100 focus sessions completed</div>
+              </div>
+              <div style="color: var(--success); font-weight: 700;">✓</div>
+            </div>
+          </div>
+
+          <!-- Unlocked: Week Warrior -->
+          <div class="card" style="padding: 14px; border: 1px solid var(--success); background: rgba(16, 185, 129, 0.05);">
+            <div style="display: flex; gap: 12px;">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--success), #059669); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px;">🔥</div>
+              <div class="grow">
+                <div style="font-size: 14px; font-weight: 700; color: var(--success);">Week Warrior</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">7-day streak achieved</div>
+              </div>
+              <div style="color: var(--success); font-weight: 700;">✓</div>
+            </div>
+          </div>
+
+          <!-- Locked: Century Club -->
+          <div class="card" style="padding: 14px; opacity: 0.5;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 24px; filter: grayscale(1);">🎯</div>
+              <div class="grow">
+                <div style="font-size: 14px; font-weight: 700;">Century Club</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Reach 100-day streak</div>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Locked</div>
+            </div>
+          </div>
+
+          <!-- Locked: Speedrunner -->
+          <div class="card" style="padding: 14px; opacity: 0.5;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 24px; filter: grayscale(1);">⚡</div>
+              <div class="grow">
+                <div style="font-size: 14px; font-weight: 700;">Speedrunner</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Complete 5 sessions in one day</div>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Locked</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="glabel">Your Progress</div>
+        <div class="card" style="padding: 14px;">
+          <div class="row between" style="margin-bottom: 12px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">Completion</span>
+            <span class="num" style="font-weight: 700; color: var(--primary);">45%</span>
+          </div>
+          <div class="track"><i style="width: 45%;"></i></div>
+        </div>
+
+        <div class="mt-auto"></div>
+      </div>
+
+      <nav class="nav">
+        <div class="nav__item" data-ic="home"></div>
+        <div class="nav__item" data-ic="focus"></div>
+        <div class="nav__item" data-ic="gift"></div>
+        <div class="nav__item" data-ic="cog"></div>
+      </nav>
+    </div></div>
+  </div>
+
+</div>
+
+<style>
+/* Reward icon styling */
+.rico {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.15), var(--tint));
+  box-shadow: var(--shadow-sm);
+}
+</style>
+
+<script>
+(function() {
+  // Draw tick rings on dials
+  document.querySelectorAll('[data-dial]').forEach(function(d) {
+    var svg = d.querySelector('.ticks');
+    if (!svg) return;
+    
+    var frac = parseFloat(d.getAttribute('data-fraction') || '0');
+    var N = 116;
+    var on = Math.round(frac * N);
+    var cx = 50, cy = 50, rOut = 46;
+    var out = '';
+    
+    for (var i = 0; i < N; i++) {
+      var a = (-90 + (i / N) * 360) * Math.PI / 180;
+      var maj = (i % Math.floor(N / 12)) === 0;
+      var len = maj ? 5 : 2.8;
+      var r1 = rOut - len;
+      var x1 = cx + r1 * Math.cos(a);
+      var y1 = cy + r1 * Math.sin(a);
+      var x2 = cx + rOut * Math.cos(a);
+      var y2 = cy + rOut * Math.sin(a);
+      var active = i < on;
+      var col = active ? '#6366f1' : (maj ? '#64748b' : '#475569');
+      var w = maj ? 1.8 : 1.2;
+      var op = active ? 1 : (maj ? 0.8 : 0.6);
+      
+      out += '<line x1="' + x1.toFixed(2) + '" y1="' + y1.toFixed(2) + '" x2="' + x2.toFixed(2) + '" y2="' + y2.toFixed(2) + '" stroke="' + col + '" stroke-width="' + w + '" stroke-linecap="round" opacity="' + op + '"/>';
+    }
+    svg.innerHTML = out;
+  });
+
+  // Icon definitions
+  var I = {
+    home: '<path d="M3 10.5 12 4l9 6.5"/><path d="M5 9.5V20h14V9.5"/>',
+    focus: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/>',
+    gift: '<path d="M4 11h16v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 7.5h18V11H3zM12 7.5V20"/>',
+    cog: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.4M12 19.1v2.4M21.5 12h-2.4M4.9 12H2.5M18.7 5.3l-1.7 1.7M7 17l-1.7 1.7M18.7 18.7 17 17M7 7 5.3 5.3"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
+    coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 9.2c.7-.8 4.8-1.1 4.8 1s-4.4 1.4-4.8 2.5 4 1.6 4.8.8"/>',
+    bolt: '<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    trash: '<path d="M9 3h6v2H9V3zm1 4h4v10H10V7zm-4 0H4v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7h-2"/>'
+  };
+
+  function svg(name, size) {
+    return '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + I[name] + '</svg>';
+  }
+
+  // Render inline icons
+  document.querySelectorAll('[data-ic]').forEach(function(e) {
+    e.innerHTML = svg(e.getAttribute('data-ic'), 22);
+  });
+
+  document.querySelectorAll('[data-ic-inline]').forEach(function(e) {
+    var name = e.getAttribute('data-ic-inline');
+    var size = (name === 'plus') ? 20 : 18;
+    e.innerHTML = svg(name, size);
+  });
+
+  // Chevron icons
+  document.querySelectorAll('[data-chev]').forEach(function(e) {
+    e.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>';
+  });
+
+  // Avatar face
+  document.querySelectorAll('[data-face]').forEach(function(e) {
+    e.innerHTML = '<svg width="70%" height="70%" viewBox="0 0 40 40"><circle cx="20" cy="15" r="7" fill="rgba(255,255,255,.92)"/><path d="M6 40c2-9 8-12 14-12s12 3 14 12z" fill="rgba(255,255,255,.92)"/></svg>';
+  });
+
+  // Status icons (signal, wifi, battery)
+  document.querySelectorAll('[data-statusicons]').forEach(function(e) {
+    e.innerHTML = '<span style="display:inline-flex;gap:7px;align-items:center;">' +
+      '<svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx=".7" fill="currentColor"/><rect x="4.5" y="4.5" width="3" height="7.5" rx=".7" fill="currentColor"/><rect x="9" y="2" width="3" height="10" rx=".7" fill="currentColor"/><rect x="13.5" y="0" width="3" height="12" rx=".7" fill="currentColor"/></svg>' +
+      '<svg width="16" height="12" viewBox="0 0 17 12"><path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5 5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z" fill="currentColor"/><circle cx="8.5" cy="10.5" r="1.4" fill="currentColor"/></svg>' +
+      '<svg width="26" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" stroke="currentColor" stroke-opacity=".4" fill="none"/><rect x="2" y="2" width="18" height="9" rx="2" fill="currentColor"/></svg>' +
+      '</span>';
+  });
+})();
+</script>
+
+</body>
+</html>
