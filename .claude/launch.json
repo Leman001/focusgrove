@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "focusgrove",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "5555", "."],
+      "runtimeExecutable": "/Users/nikolayleman/Library/Python/3.9/bin/uvicorn",
+      "runtimeArgs": ["backend.main:app", "--host", "0.0.0.0", "--port", "5555", "--reload"],
       "port": 5555
     }
   ]

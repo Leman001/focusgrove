@@ -1,65 +1,64 @@
-// FocusGrove — Main Application Orchestrator
+// FocusGrove v2 — Main Application (API-backed)
 
-import { initI18n, setLanguage, getLanguage, t } from './i18n.js';
-import * as Storage from './storage.js';
+import * as API from './api.js';
 import { FocusTimer } from './timer.js';
 import { VisibilityMonitor } from './visibility.js';
-import * as Rewards from './rewards.js';
 
-// Elements
-const appScreens = document.querySelectorAll('.screen');
-const navButtons = document.querySelectorAll('.nav-btn');
-const bottomNav = document.getElementById('bottom-nav');
+// ── Elements ────────────────────────────────────────────────────────────────
 
-// State
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+const appScreens = $$('.screen');
+const navButtons = $$('.nav-btn');
+const bottomNav = $('#bottom-nav');
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+let me = null;            // /api/me response
+let rewards = [];         // /api/rewards response
 let currentSession = null;
+let currentSessionId = null;
 let visibilityMonitor = null;
 let treeInstance = null;
 let isFocusModeActive = false;
-let selectedDuration = 25; // module-level so dial rotation + chip both write here
+let selectedDuration = 25;
 
-// ---- Initialization ----
+// ── Init ────────────────────────────────────────────────────────────────────
 
 async function initApp() {
-  const settings = Storage.getSettings();
-  initI18n(settings.language);
-
-  // Set today's date on dashboard
-  const dateEl = document.getElementById('dash-date');
-  if (dateEl) {
-    const now = new Date();
-    dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' });
+  try {
+    me = await API.getMe();
+    rewards = await API.getRewards();
+  } catch (e) {
+    console.warn('API unavailable, using defaults', e);
+    me = { id: 1, name: 'User', balanceMinutes: 0, dayStreak: 0,
+      settings: { defaultDurationMinutes: 25, defaultMode: 'countdown', language: 'en', strictMode: true },
+      todayFocusMinutes: 0, weekFocusMinutes: 0, dailyAvgMinutes: 0, totalFocusHours: 0, weeklyBars: [0,0,0,0,0,0,0] };
+    rewards = [];
   }
 
-  updateDashboardStats();
+  selectedDuration = me.settings.defaultDurationMinutes || 25;
+
+  renderDashboard();
+  renderRewards();
   initNavigation();
-  initSettings(settings);
+  initSettings();
   initFocusStart();
-  initDialRotation();
   initModals();
-  initOnboarding();
 
-  Rewards.setBalanceChangeCallback(() => {
-    updateDashboardStats();
-    if (document.getElementById('screen-rewards').classList.contains('active')) {
-      Rewards.renderRewardsList(document.getElementById('rewards-list'));
-      Rewards.renderHistory(document.getElementById('rewards-history'));
-    }
-  });
-
-  // Preload tree module silently
+  // Preload tree
   try {
     const { FocusTree } = await import('./tree.js');
     treeInstance = new FocusTree('tree-container');
     treeInstance.init();
-    const canvas = document.querySelector('#tree-container canvas');
+    const canvas = $('#tree-container canvas');
     if (canvas) canvas.style.opacity = '0';
   } catch (e) {
-    console.warn('Failed to preload tree.js', e);
+    console.warn('Tree preload failed', e);
   }
 }
 
-// ---- Navigation ----
+// ── Navigation ──────────────────────────────────────────────────────────────
 
 function initNavigation() {
   navButtons.forEach(btn => {
@@ -68,288 +67,138 @@ function initNavigation() {
       switchScreen(btn.dataset.screen);
     });
   });
-
-  // Hidden lang button (kept for compatibility, actual lang toggle is in settings)
-  const btnLang = document.getElementById('btn-lang');
-  if (btnLang) {
-    btnLang.addEventListener('click', () => {
-      const newLang = getLanguage() === 'ru' ? 'en' : 'ru';
-      setLanguage(newLang);
-      Storage.saveSettings({ language: newLang });
-      updateDashboardStats();
-      updateSettingsUI();
-    });
-  }
 }
 
 function switchScreen(screenId) {
   appScreens.forEach(s => s.classList.remove('active'));
   navButtons.forEach(b => b.classList.remove('active'));
+  $(`#screen-${screenId}`)?.classList.add('active');
+  $(`.nav-btn[data-screen="${screenId}"]`)?.classList.add('active');
 
-  const targetScreen = document.getElementById(`screen-${screenId}`);
-  if (targetScreen) targetScreen.classList.add('active');
-
-  const targetNav = document.querySelector(`.nav-btn[data-screen="${screenId}"]`);
-  if (targetNav) targetNav.classList.add('active');
-
-  if (screenId === 'rewards') {
-    Rewards.renderRewardsList(document.getElementById('rewards-list'));
-    Rewards.renderHistory(document.getElementById('rewards-history'));
-    document.getElementById('rewards-balance').textContent = Storage.getAvailableBalance();
-  } else if (screenId === 'dashboard') {
-    updateDashboardStats();
-  } else if (screenId === 'settings') {
-    const streakLine = document.getElementById('settings-streak-line');
-    if (streakLine) {
-      const s = Storage.getStreak();
-      streakLine.textContent = `Focused ${s} ${s === 1 ? 'day' : 'days'} in a row`;
-    }
-  }
+  if (screenId === 'rewards') refreshRewards();
+  if (screenId === 'settings') renderSettings();
+  if (screenId === 'dashboard') refreshDashboard();
 }
 
-// ---- Dashboard ----
+// ── Dashboard A ─────────────────────────────────────────────────────────────
 
-function updateDashboardStats() {
-  const totalMins = Storage.getTotalFocusMinutes();
-  const hrs = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  document.getElementById('stat-total-hours').textContent =
-    hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-  document.getElementById('stat-streak').textContent = Storage.getStreak() + 'd';
-  document.getElementById('stat-balance').textContent = Storage.getAvailableBalance();
-  const balanceBadge = document.getElementById('rewards-balance');
-  if (balanceBadge) balanceBadge.textContent = Storage.getAvailableBalance();
+function renderDashboard() {
+  if (!me) return;
+  $('#dash-username').textContent = me.name;
+  $('#stat-total').textContent = me.totalFocusHours.toLocaleString();
+  $('#stat-streak').textContent = me.dayStreak;
+  $('#stat-balance-chip').textContent = me.balanceMinutes.toLocaleString();
+
+  const todayH = Math.floor(me.todayFocusMinutes / 60);
+  const todayM = me.todayFocusMinutes % 60;
+  $('#stat-today').textContent = `${todayH}h`;
+  $('#stat-today-m').textContent = `${todayM}m`;
+
+  const weekH = Math.floor(me.weekFocusMinutes / 60);
+  const weekM = me.weekFocusMinutes % 60;
+  $('#stat-week').textContent = `${weekH}h`;
+  $('#stat-week-m').textContent = `${weekM}m`;
+
+  const avgH = Math.floor(me.dailyAvgMinutes / 60);
+  const avgM = me.dailyAvgMinutes % 60;
+  $('#stat-avg').innerHTML = `${avgH}h <span style="font-size:14px;color:var(--ink-mute)">${avgM}m</span>`;
+
+  // Weekly bars
+  const barsEl = $('#weekly-bars');
+  const colors = ['var(--c-blue)','var(--accent)','var(--c-green)','var(--c-yellow)','var(--c-violet)','var(--accent)','var(--c-blue)'];
+  barsEl.innerHTML = (me.weeklyBars || [0,0,0,0,0,0,0]).map((v, i) =>
+    `<div class="bar" style="width:6px;height:${Math.max(8, v * 44)}px;background:${colors[i]}"></div>`
+  ).join('');
+
+  // Duration chip
+  updateChipLabel();
 }
 
-// ---- Dial rendering ----
-
-function drawDialTicks(el, frac) {
-  const svg = el.querySelector('.dial-ticks');
-  if (!svg) return;
-  const N = 116, on = Math.round(frac * N), cx = 50, cy = 50, rOut = 46;
-  let out = '';
-  for (let i = 0; i < N; i++) {
-    const a = (-90 + i / N * 360) * Math.PI / 180;
-    const maj = i % Math.floor(N / 12) === 0;
-    const len = maj ? 5 : 2.8;
-    const r1 = rOut - len;
-    const x1 = cx + r1 * Math.cos(a), y1 = cy + r1 * Math.sin(a);
-    const x2 = cx + rOut * Math.cos(a), y2 = cy + rOut * Math.sin(a);
-    const active = i < on;
-    const col = active ? '#ff6a2b' : (maj ? '#b9b3a6' : '#cfc9bd');
-    const w = maj ? 1.6 : 1;
-    const op = active ? 1 : (maj ? 0.9 : 0.7);
-    out += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
-  }
-  svg.innerHTML = out;
+async function refreshDashboard() {
+  try { me = await API.getMe(); renderDashboard(); } catch (e) { console.warn(e); }
 }
 
-let _lastDialMinutes = -1;
-
-function updateDialDisplay(minutes) {
-  const dialDisplay = document.getElementById('dial-display');
-  const chipLabel = document.getElementById('dial-chip-label');
-  const dialEl = document.getElementById('dash-dial');
-  if (dialDisplay) dialDisplay.textContent = minutes;
-  if (chipLabel) chipLabel.textContent = `${String(minutes).padStart(2, '0')}:00`;
-  if (dialEl) drawDialTicks(dialEl, Math.min(1, minutes / 120));
-
-  // Visual feedback: pulse the center number when value changes during drag
-  if (minutes !== _lastDialMinutes && _lastDialMinutes !== -1) {
-    const center = dialEl?.querySelector('.dial-center');
-    if (center) {
-      center.style.transition = 'transform 0.08s ease-out';
-      center.style.transform = 'scale(1.06)';
-      setTimeout(() => {
-        center.style.transform = 'scale(1)';
-      }, 80);
-    }
-    // Haptic feedback on supported devices
-    if (navigator.vibrate) navigator.vibrate(4);
-  }
-  _lastDialMinutes = minutes;
+function updateChipLabel() {
+  const el = $('#dial-chip-label');
+  if (el) el.textContent = `${String(selectedDuration).padStart(2, '0')}:00`;
 }
 
-// ---- Focus Start ----
+// ── Focus Start ─────────────────────────────────────────────────────────────
 
 function initFocusStart() {
-  const durationBtns = document.querySelectorAll('.duration-btn');
-  const customInput = document.getElementById('duration-custom');
-  const startBtn = document.getElementById('btn-start-focus');
+  const presets = [25, 45, 60, 90];
+  let idx = presets.indexOf(selectedDuration);
+  if (idx === -1) idx = 0;
 
-  const presets = [25, 45, 60, 90, 120];
-  // Initialise from saved settings
-  const saved = Storage.getSettings().defaultDuration || 25;
-  selectedDuration = Math.max(1, Math.min(120, saved));
-  let chipIdx = presets.indexOf(selectedDuration);
-  if (chipIdx === -1) chipIdx = 0;
+  // Chip cycles presets
+  $('#duration-chip-btn')?.addEventListener('click', () => {
+    idx = (idx + 1) % presets.length;
+    selectedDuration = presets[idx];
+    updateChipLabel();
+  });
 
-  updateDialDisplay(selectedDuration);
-
-  // Chip cycles through presets
-  const chipBtn = document.getElementById('duration-chip-btn');
-  if (chipBtn) {
-    chipBtn.addEventListener('click', () => {
-      chipIdx = (chipIdx + 1) % presets.length;
-      selectedDuration = presets[chipIdx];
-      durationBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.duration) === selectedDuration));
-      if (customInput) customInput.value = '';
-      updateDialDisplay(selectedDuration);
-    });
-  }
-
-  if (customInput) {
-    customInput.addEventListener('input', () => {
-      if (customInput.value) {
-        const v = parseInt(customInput.value, 10);
-        if (v >= 1) {
-          selectedDuration = v;
-          updateDialDisplay(selectedDuration);
-        }
-      }
-    });
-  }
-
-  startBtn.addEventListener('click', () => {
+  $('#btn-start-focus')?.addEventListener('click', () => {
     if (selectedDuration >= 1) startFocusSession(selectedDuration);
   });
 }
 
-// ---- Dial Rotation ----
-
-function initDialRotation() {
-  const dialEl = document.getElementById('dash-dial');
-  if (!dialEl) return;
-
-  // Make dial feel interactive
-  dialEl.style.cursor = 'grab';
-  dialEl.style.userSelect = 'none';
-  dialEl.style.touchAction = 'none';
-
-  let dragging = false;
-  let lastAngle = 0;
-  let fractionalMinutes = selectedDuration; // tracks sub-integer for smooth dragging
-
-  function angleFromEvent(e, rect) {
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    // Angle from top (12 o'clock), clockwise positive, 0-360°
-    return (Math.atan2(clientX - cx, -(clientY - cy)) * 180 / Math.PI + 360) % 360;
-  }
-
-  function onStart(e) {
-    e.preventDefault();
-    dragging = true;
-    fractionalMinutes = selectedDuration;
-    dialEl.style.cursor = 'grabbing';
-    const rect = dialEl.getBoundingClientRect();
-    lastAngle = angleFromEvent(e, rect);
-  }
-
-  function onMove(e) {
-    if (!dragging) return;
-    e.preventDefault();
-    const rect = dialEl.getBoundingClientRect();
-    const angle = angleFromEvent(e, rect);
-
-    let delta = angle - lastAngle;
-    // Wrap-around correction
-    if (delta > 180) delta -= 360;
-    if (delta < -180) delta += 360;
-
-    // 360° = 120 minutes
-    fractionalMinutes += delta / 360 * 120;
-    fractionalMinutes = Math.max(1, Math.min(120, fractionalMinutes));
-    selectedDuration = Math.round(fractionalMinutes);
-
-    lastAngle = angle;
-    updateDialDisplay(selectedDuration);
-  }
-
-  function onEnd() {
-    if (!dragging) return;
-    dragging = false;
-    dialEl.style.cursor = 'grab';
-    fractionalMinutes = selectedDuration; // snap to integer
-    updateDialDisplay(selectedDuration);
-  }
-
-  dialEl.addEventListener('mousedown', onStart);
-  dialEl.addEventListener('touchstart', onStart, { passive: false });
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('touchmove', onMove, { passive: false });
-  window.addEventListener('mouseup', onEnd);
-  window.addEventListener('touchend', onEnd);
-}
-
-// ---- Focus Session Logic ----
+// ── Focus Session ───────────────────────────────────────────────────────────
 
 async function startFocusSession(minutes) {
   isFocusModeActive = true;
   switchScreen('focus');
   bottomNav.classList.add('nav-hidden');
 
-  const settings = Storage.getSettings();
+  const mode = me?.settings?.defaultMode || 'countdown';
 
-  // Update session target display
-  document.getElementById('session-target-value').textContent = `of ${String(minutes).padStart(2, '0')}:00`;
+  // Start session on backend
+  try {
+    const res = await API.startSession({ durationMinutes: minutes, mode });
+    currentSessionId = res.id;
+  } catch (e) {
+    console.warn('Failed to start session on server', e);
+    currentSessionId = null;
+  }
 
-  // Earning display
-  const earningEl = document.getElementById('earning-display');
-  if (earningEl) earningEl.textContent = `+${minutes} min`;
+  // Update focus mode seg
+  $$('#focus-mode-seg span').forEach(s => s.classList.toggle('on', s.dataset.mode === mode));
 
-  // Sync focus-mode-seg with current timer mode
-  const focusSegSpans = document.querySelectorAll('#focus-mode-seg span');
-  focusSegSpans.forEach(s => s.classList.toggle('on', s.dataset.mode === settings.timerMode));
-
-  // Focus mode segmented control
-  focusSegSpans.forEach(span => {
-    span.addEventListener('click', () => {
-      focusSegSpans.forEach(s => s.classList.remove('on'));
+  // Focus mode seg click handler
+  $$('#focus-mode-seg span').forEach(span => {
+    span.onclick = () => {
+      $$('#focus-mode-seg span').forEach(s => s.classList.remove('on'));
       span.classList.add('on');
-      const newMode = span.dataset.mode;
-      if (currentSession) currentSession.setMode(newMode);
-      Storage.saveSettings({ timerMode: newMode });
-      // Sync hidden toggle for legacy compat
-      document.getElementById('timer-mode-icon').textContent = newMode === 'countdown' ? '↓' : '↑';
-    });
+      if (currentSession) currentSession.setMode(span.dataset.mode);
+    };
   });
 
-  // Ensure tree is ready
-  if (!treeInstance) {
-    const { FocusTree } = await import('./tree.js');
-    treeInstance = new FocusTree('tree-container');
-    treeInstance.init();
+  // Show tree
+  if (treeInstance) {
+    const canvas = $('#tree-container canvas');
+    if (canvas) { canvas.style.transition = 'opacity 1s'; canvas.style.opacity = '1'; }
   }
-  const canvas = document.querySelector('#tree-container canvas');
-  if (canvas) {
-    canvas.style.transition = 'opacity 1s ease';
-    canvas.style.opacity = '1';
-  }
-  document.getElementById('tree-loading').style.display = 'none';
+  $('#tree-loading').style.display = 'none';
 
-  // Setup Timer
-  const durationSeconds = minutes * 60;
+  // Timer
+  const durationSec = minutes * 60;
   currentSession = new FocusTimer({
-    duration: durationSeconds,
-    mode: settings.timerMode,
+    duration: durationSec,
+    mode,
     onTick: (elapsed, remaining, progress) => {
-      document.getElementById('timer-value').textContent = currentSession.getDisplayTime();
-      document.getElementById('focus-progress-fill').style.width = `${progress * 100}%`;
-      document.getElementById('focus-progress-text').textContent = `${Math.floor(progress * 100)}%`;
+      $('#timer-value').textContent = currentSession.getDisplayTime();
+      const minsLeft = Math.ceil(remaining / 60);
+      $('#focus-caption').textContent = minsLeft > 0 ? `${minsLeft} minute${minsLeft !== 1 ? 's' : ''} to bloom` : 'Blooming!';
       if (treeInstance) treeInstance.setProgress(progress);
     },
     onComplete: () => handleSessionComplete(true, minutes),
     onPause: () => {},
   });
 
-  // Setup Visibility Monitor
+  // Visibility monitor (strict mode)
   visibilityMonitor = new VisibilityMonitor({
     onFirstLeave: () => {
       currentSession.pause();
-      document.getElementById('modal-warning').classList.add('active');
+      $('#modal-warning').classList.add('active');
     },
     onSecondLeave: () => handleSessionReset(),
     onReturn: () => {},
@@ -357,44 +206,19 @@ async function startFocusSession(minutes) {
 
   currentSession.start();
   visibilityMonitor.start();
-
-  // Pause / Resume button
-  const btnPause = document.getElementById('btn-pause-focus');
-  if (btnPause) {
-    btnPause.textContent = 'Pause';
-    btnPause.onclick = () => {
-      if (currentSession.paused) {
-        currentSession.resume();
-        btnPause.textContent = 'Pause';
-      } else {
-        currentSession.pause();
-        btnPause.textContent = 'Resume';
-      }
-    };
-  }
-
-  // End early button
-  document.getElementById('btn-end-focus').onclick = () => {
-    const elapsedMinutes = Math.floor(currentSession.getElapsed() / 60);
-    handleSessionComplete(false, elapsedMinutes);
-  };
-
-  // Hidden legacy timer mode button sync
-  document.getElementById('timer-mode-icon').textContent = settings.timerMode === 'countdown' ? '↓' : '↑';
-  document.getElementById('btn-timer-mode').onclick = () => {
-    const newMode = currentSession.mode === 'countdown' ? 'countup' : 'countdown';
-    currentSession.setMode(newMode);
-    Storage.saveSettings({ timerMode: newMode });
-  };
 }
 
-function handleSessionComplete(isFull, earnedMinutes) {
+async function handleSessionComplete(isFull, earnedMinutes) {
   cleanupFocusSession();
+  if (earnedMinutes > 0 && currentSessionId) {
+    try {
+      const res = await API.completeSession(currentSessionId);
+      earnedMinutes = res.earnedMinutes;
+    } catch (e) { console.warn(e); }
+  }
   if (earnedMinutes > 0) {
-    Storage.saveSession({ duration: earnedMinutes * 60, targetMinutes: earnedMinutes, completed: isFull });
-    document.getElementById('complete-minutes').textContent = earnedMinutes;
-    document.getElementById('complete-text').textContent = t('sessionCompleteText');
-    document.getElementById('modal-complete').classList.add('active');
+    $('#complete-minutes').textContent = `+${earnedMinutes} min`;
+    $('#modal-complete').classList.add('active');
   } else {
     exitFocusMode();
   }
@@ -402,8 +226,9 @@ function handleSessionComplete(isFull, earnedMinutes) {
 
 function handleSessionReset() {
   cleanupFocusSession();
-  document.getElementById('modal-warning').classList.remove('active');
-  document.getElementById('modal-reset').classList.add('active');
+  if (currentSessionId) API.abortSession(currentSessionId).catch(() => {});
+  $('#modal-warning').classList.remove('active');
+  $('#modal-reset').classList.add('active');
 }
 
 function cleanupFocusSession() {
@@ -415,139 +240,242 @@ function exitFocusMode() {
   isFocusModeActive = false;
   bottomNav.classList.remove('nav-hidden');
   if (treeInstance) treeInstance.setProgress(0);
-  updateDashboardStats();
+  currentSessionId = null;
   switchScreen('dashboard');
 }
 
-// ---- Onboarding ----
+// ── Rewards ─────────────────────────────────────────────────────────────────
 
-function initOnboarding() {
-  const sessions = Storage.getSessions();
-  if (sessions.length > 0) return; // not first time
+function renderRewards() {
+  const container = $('#rewards-list');
+  $('#rewards-balance').textContent = (me?.balanceMinutes || 0).toLocaleString();
+  const bal = me?.balanceMinutes || 0;
 
-  // Replace "Ready to focus?" with welcome message
-  const h1 = document.querySelector('.dash-header .fg-h1');
-  if (h1) h1.textContent = 'Welcome to FocusGrove!';
+  if (!rewards.length) {
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-mute)">
+      <div style="font-size:32px;margin-bottom:8px">🎁</div>
+      <div style="font-size:15px;font-weight:600">No rewards yet</div>
+      <div style="font-size:13px;margin-top:4px">Tap + New to create your first</div>
+    </div>`;
+    return;
+  }
 
-  // Show a subtle hint below the dial
-  const dialHero = document.querySelector('.dial-hero');
-  if (dialHero) {
-    const hint = document.createElement('div');
-    hint.className = 'onboarding-hint';
-    hint.innerHTML = '<span style="font-size:14px;color:var(--ink-soft);text-align:center;line-height:1.4;">Rotate the dial to set your time<br>then tap <b>Start Focus</b></span>';
-    dialHero.appendChild(hint);
+  const tints = { '☕': '#efe0cf', '🎮': '#d6e6d8', '🍿': '#e2dcf0', '🛍️': '#f4ddd4', '🌴': '#cfe2e8', '📚': '#e0dce8' };
+
+  container.innerHTML = rewards.map(r => {
+    const afford = bal >= r.costMinutes;
+    const tint = tints[r.emoji] || '#e8e2d9';
+    return `
+      <div class="fg-card catalog-card" data-id="${r.id}">
+        <div class="card-img" style="background:radial-gradient(120% 120% at 38% 30%, #fff, ${tint})">
+          <span class="emoji">${r.emoji}</span>
+          ${r.badge ? `<div class="fg-tag" style="position:absolute;top:10px;right:10px;height:24px;font-size:11px">${r.badge}</div>` : ''}
+          <button class="reward-delete-btn" data-id="${r.id}" style="position:absolute;top:10px;left:10px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.15);color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">✕</button>
+        </div>
+        <div class="card-body">
+          <div class="card-name">${r.name}</div>
+          <div class="card-footer">
+            <span class="fg-num card-price">${r.costMinutes} <span class="unit">min</span></span>
+            <button class="btn-claim ${afford ? 'can-claim' : 'locked'}" data-id="${r.id}" ${!afford ? 'disabled' : ''}>
+              ${afford ? 'Claim' : `Need ${r.costMinutes - bal}`}
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Events
+  container.querySelectorAll('.btn-claim.can-claim').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); handleClaimReward(btn.dataset.id); });
+  });
+  container.querySelectorAll('.reward-delete-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); handleDeleteReward(btn.dataset.id); });
+  });
+}
+
+async function refreshRewards() {
+  try {
+    [me, rewards] = await Promise.all([API.getMe(), API.getRewards()]);
+    renderRewards();
+  } catch (e) { console.warn(e); }
+}
+
+async function handleClaimReward(id) {
+  const reward = rewards.find(r => r.id === id);
+  if (!reward) return;
+  try {
+    const res = await API.claimReward(id);
+    // Show celebration
+    $('#celebration-emoji').textContent = reward.emoji;
+    $('#celebration-text').innerHTML = `Enjoy your <b style="color:var(--ink)">${reward.name}</b>. You earned every minute of it.`;
+    $('#celebration-balance').innerHTML = `${res.balanceMinutes.toLocaleString()} <span style="font-size:15px;color:var(--ink-mute)">min</span>`;
+    $('#modal-celebration').classList.add('active');
+    // Create confetti
+    createConfetti();
+    me.balanceMinutes = res.balanceMinutes;
+    renderRewards();
+  } catch (e) {
+    alert(e.message);
   }
 }
 
-// ---- Settings & Modals ----
+let pendingDeleteId = null;
+function handleDeleteReward(id) {
+  const reward = rewards.find(r => r.id === id);
+  pendingDeleteId = id;
+  $('#confirm-title').textContent = 'Delete this reward?';
+  $('#confirm-text').textContent = `"${reward?.name}" will be removed. This can't be undone.`;
+  $('#modal-confirm').classList.add('active');
+}
 
-function initSettings(settings) {
-  const sDuration = document.getElementById('setting-duration');
-  sDuration.value = settings.defaultDuration;
-  sDuration.addEventListener('change', () => {
-    Storage.saveSettings({ defaultDuration: parseInt(sDuration.value) });
+function createConfetti() {
+  const container = $('#confetti');
+  container.innerHTML = '';
+  const cols = ['#ff6a2b', '#4f7dff', '#3fb37a', '#f4b740', '#8b7bff'];
+  for (let i = 0; i < 28; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*70}%;background:${cols[i%5]};transform:rotate(${Math.random()*360}deg)`;
+    container.appendChild(piece);
+  }
+  setTimeout(() => container.innerHTML = '', 3000);
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────
+
+function renderSettings() {
+  if (!me) return;
+  $('#settings-name').textContent = me.name;
+  const s = me.dayStreak;
+  $('#settings-streak-line').textContent = `Focused ${s} ${s === 1 ? 'day' : 'days'} in a row`;
+  $('#setting-duration').value = me.settings.defaultDurationMinutes;
+
+  $$('#toggle-timer-mode button').forEach(b => b.classList.toggle('active', b.dataset.mode === me.settings.defaultMode));
+  $$('#toggle-language button').forEach(b => b.classList.toggle('active', b.dataset.lang === me.settings.language));
+
+  const strict = $('#strict-toggle');
+  strict.classList.toggle('on', me.settings.strictMode);
+  strict.classList.toggle('off', !me.settings.strictMode);
+}
+
+function initSettings() {
+  renderSettings();
+
+  $('#setting-duration')?.addEventListener('change', async (e) => {
+    const v = parseInt(e.target.value);
+    await API.patchSettings({ defaultDurationMinutes: v }).catch(() => {});
+    if (me) me.settings.defaultDurationMinutes = v;
+    selectedDuration = v;
+    updateChipLabel();
   });
 
-  // Timer mode segmented (spans with toggle-btn class)
-  const timerModeBtns = document.querySelectorAll('#toggle-timer-mode .toggle-btn');
-  timerModeBtns.forEach(btn => {
-    if (btn.dataset.mode === settings.timerMode) btn.classList.add('active');
-    btn.addEventListener('click', () => {
-      timerModeBtns.forEach(b => b.classList.remove('active'));
+  $$('#toggle-timer-mode button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      $$('#toggle-timer-mode button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      Storage.saveSettings({ timerMode: btn.dataset.mode });
+      await API.patchSettings({ defaultMode: btn.dataset.mode }).catch(() => {});
+      if (me) me.settings.defaultMode = btn.dataset.mode;
     });
   });
 
-  updateSettingsUI();
-
-  const langBtns = document.querySelectorAll('#toggle-language .toggle-btn');
-  langBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const lang = btn.dataset.lang;
-      setLanguage(lang);
-      Storage.saveSettings({ language: lang });
-      updateSettingsUI();
+  $$('#toggle-language button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      $$('#toggle-language button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      await API.patchSettings({ language: btn.dataset.lang }).catch(() => {});
+      if (me) me.settings.language = btn.dataset.lang;
     });
   });
 
-  // Wipe all data
-  document.getElementById('btn-reset-data').addEventListener('click', () => {
+  $('#strict-toggle')?.addEventListener('click', async () => {
+    const toggle = $('#strict-toggle');
+    const isOn = toggle.classList.contains('on');
+    toggle.classList.toggle('on', !isOn);
+    toggle.classList.toggle('off', isOn);
+    await API.patchSettings({ strictMode: !isOn }).catch(() => {});
+    if (me) me.settings.strictMode = !isOn;
+  });
+
+  $('#btn-reset-data')?.addEventListener('click', async () => {
     if (confirm('Wipe all focus data? This cannot be undone.')) {
-      Storage.resetAllData();
+      await API.wipeAllData().catch(() => {});
       window.location.reload();
     }
   });
-
-  // Strict mode toggle (visual only — behaviour handled by VisibilityMonitor)
-  const strictToggle = document.getElementById('strict-toggle');
-  if (strictToggle) {
-    strictToggle.addEventListener('click', () => {
-      strictToggle.classList.toggle('on');
-      strictToggle.classList.toggle('off');
-    });
-    // Initialise to 'on' state
-    strictToggle.classList.add('on');
-  }
 }
 
-function updateSettingsUI() {
-  const lang = getLanguage();
-  document.querySelectorAll('#toggle-language .toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.lang === lang);
-  });
-}
+// ── Modals ───────────────────────────────────────────────────────────────────
 
 function initModals() {
-  document.getElementById('btn-warning-ok').addEventListener('click', () => {
-    document.getElementById('modal-warning').classList.remove('active');
+  $('#btn-warning-ok')?.addEventListener('click', () => {
+    $('#modal-warning').classList.remove('active');
     if (currentSession) currentSession.resume();
-    const btnPause = document.getElementById('btn-pause-focus');
-    if (btnPause) btnPause.textContent = 'Pause';
   });
 
-  document.getElementById('btn-reset-ok').addEventListener('click', () => {
-    document.getElementById('modal-reset').classList.remove('active');
+  $('#btn-reset-ok')?.addEventListener('click', () => {
+    $('#modal-reset').classList.remove('active');
     exitFocusMode();
   });
 
-  document.getElementById('btn-complete-ok').addEventListener('click', () => {
-    document.getElementById('modal-complete').classList.remove('active');
+  $('#btn-complete-ok')?.addEventListener('click', () => {
+    $('#modal-complete').classList.remove('active');
     exitFocusMode();
   });
 
-  document.getElementById('btn-add-reward').addEventListener('click', Rewards.openAddRewardModal);
-
-  document.getElementById('btn-reward-cancel').addEventListener('click', () => {
-    document.getElementById('modal-reward').classList.remove('active');
+  $('#btn-celebration-ok')?.addEventListener('click', () => {
+    $('#modal-celebration').classList.remove('active');
   });
 
-  document.getElementById('btn-reward-save').addEventListener('click', () => {
-    if (Rewards.saveRewardFromModal()) {
-      document.getElementById('modal-reward').classList.remove('active');
-    }
+  // Add reward
+  $('#btn-add-reward')?.addEventListener('click', openAddRewardModal);
+  $('#btn-reward-cancel')?.addEventListener('click', () => $('#modal-reward').classList.remove('active'));
+
+  $('#btn-reward-save')?.addEventListener('click', async () => {
+    const name = $('#reward-name').value.trim();
+    const cost = parseInt($('#reward-cost').value, 10);
+    const emoji = $('.emoji-btn.active')?.dataset?.emoji || '🎁';
+    if (!name || !cost || cost <= 0) return;
+    try {
+      await API.createReward({ emoji, name, costMinutes: cost });
+      $('#modal-reward').classList.remove('active');
+      refreshRewards();
+    } catch (e) { alert(e.message); }
   });
 
-  document.querySelectorAll('.emoji-btn').forEach(btn => {
+  // Emoji picker
+  $$('.emoji-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
+      $$('.emoji-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      $('#emoji-preview').textContent = btn.dataset.emoji;
     });
   });
 
-  document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
-    Rewards.cancelDelete();
-    document.getElementById('modal-confirm').classList.remove('active');
+  // Confirm delete
+  $('#btn-confirm-cancel')?.addEventListener('click', () => {
+    pendingDeleteId = null;
+    $('#modal-confirm').classList.remove('active');
   });
 
-  document.getElementById('btn-confirm-ok').addEventListener('click', () => {
-    Rewards.confirmDelete();
-    document.getElementById('modal-confirm').classList.remove('active');
-  });
-
-  document.getElementById('btn-celebration-ok').addEventListener('click', () => {
-    document.getElementById('modal-celebration').classList.remove('active');
+  $('#btn-confirm-ok')?.addEventListener('click', async () => {
+    if (pendingDeleteId) {
+      await API.deleteReward(pendingDeleteId).catch(() => {});
+      pendingDeleteId = null;
+      $('#modal-confirm').classList.remove('active');
+      refreshRewards();
+    }
   });
 }
+
+function openAddRewardModal() {
+  $('#reward-name').value = '';
+  $('#reward-cost').value = '';
+  $$('.emoji-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+  $('#emoji-preview').textContent = '☕';
+  $('#modal-reward-title').textContent = 'New reward';
+  $('#modal-reward').classList.add('active');
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', initApp);

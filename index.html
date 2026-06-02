@@ -5,238 +5,208 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#efece6">
   <title>FocusGrove</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-    }
-  }
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }}
   </script>
 </head>
 <body>
 <div id="app">
 
-  <!-- ===================== DASHBOARD ===================== -->
+  <!-- ===================== DASHBOARD A — Welcome & Trends ===================== -->
   <section id="screen-dashboard" class="screen active">
+    <!-- Header -->
     <div class="dash-header">
       <div>
-        <div class="eyebrow" id="dash-date"></div>
-        <div class="fg-h1">Ready to focus?</div>
+        <div class="fg-thin" style="font-size:26px;color:var(--ink-mute);line-height:1">Welcome</div>
+        <div class="fg-h1" style="font-size:36px;margin-top:2px" id="dash-username">User</div>
       </div>
-      <div class="avatar-btn">
-        <div class="avatar-face"></div>
+      <div class="fg-avatar" style="width:46px;height:46px"><div class="fg-avatar-inner">
+        <svg width="70%" height="70%" viewBox="0 0 40 40"><circle cx="20" cy="15" r="7" fill="rgba(255,255,255,.92)"/><path d="M6 40c2-9 8-12 14-12s12 3 14 12z" fill="rgba(255,255,255,.92)"/></svg>
+      </div></div>
+    </div>
+
+    <!-- Primary stats card -->
+    <div class="fg-card dash-stats-card">
+      <div class="stat-block">
+        <div class="fg-label">Total Focus</div>
+        <div class="stat-val"><span class="fg-num big" id="stat-total">0</span><span class="fg-num unit">h</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-block" style="padding-left:20px">
+        <div class="fg-label" style="display:flex;align-items:center;gap:5px">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3-2 4-2 7a4 4 0 0 0 8 0c0-2-1-3-1-3 .5 4-2 4-2 1 0-2-1-4-1-6Z"/><path d="M8 12c-1 1-2 2.5-2 4a6 6 0 0 0 12 0c0-1-.3-2-1-3"/></svg>
+          Day Streak
+        </div>
+        <div class="stat-val"><span class="fg-num big" id="stat-streak">0</span><span class="fg-num unit">days</span></div>
       </div>
     </div>
 
-    <div class="dash-stats">
-      <div class="fg-card dash-stat">
-        <div class="stat-label">Today</div>
-        <div class="stat-val fg-num" id="stat-total-hours">0</div>
-      </div>
-      <div class="fg-card dash-stat">
-        <div class="stat-label">Streak</div>
-        <div class="stat-val fg-num" id="stat-streak">0d</div>
-      </div>
-      <div class="fg-card dash-stat">
-        <div class="stat-label">Balance</div>
-        <div class="stat-val fg-num accent" id="stat-balance">0</div>
+    <!-- Trends -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:22px 2px 12px">
+      <span class="fg-h2">Focus Trends</span>
+      <div style="display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;background:var(--card-2);box-shadow:var(--sh-raise-sm);color:var(--ink-soft)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 9.2c.7-.8 4.8-1.1 4.8 1s-4.4 1.4-4.8 2.5 4 1.6 4.8.8"/></svg>
+        <span class="fg-num" style="font-size:13px;color:var(--ink)" id="stat-balance-chip">0</span>
+        <span style="font-size:11px;color:var(--ink-mute)">min</span>
       </div>
     </div>
-
-    <div class="dial-hero">
-      <div class="dial" id="dash-dial">
-        <div class="dial-plate"></div>
-        <div class="dial-disc"></div>
-        <svg class="dial-ticks" viewBox="0 0 100 100"></svg>
-        <div class="dial-center">
-          <span class="dial-big fg-num" id="dial-display">25</span>
-          <span class="dial-unit">min</span>
+    <div class="fg-card dash-trends-card">
+      <div class="dash-trends-row">
+        <div class="stat-block">
+          <div class="fg-label" style="margin-bottom:7px">Today Focus</div>
+          <div class="stat-val"><span class="fg-num big accent" id="stat-today">0h</span><span class="fg-num unit" id="stat-today-m">0m</span></div>
+        </div>
+        <div class="stat-block">
+          <div class="fg-label" style="margin-bottom:7px">This Week</div>
+          <div class="stat-val"><span class="fg-num big" id="stat-week">0h</span><span class="fg-num unit" id="stat-week-m">0m</span></div>
         </div>
       </div>
-      <button class="duration-chip" id="duration-chip-btn">
-        Focus&nbsp;<b class="fg-num" id="dial-chip-label">25:00</b>
-        <span class="chip-chev">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 5 7 7-7 7"/></svg>
+      <div class="dash-trends-footer">
+        <div>
+          <div class="fg-label" style="margin-bottom:5px">Daily Avg</div>
+          <div class="fg-num" style="font-size:22px" id="stat-avg">0h <span style="font-size:14px;color:var(--ink-mute)">0m</span></div>
+        </div>
+        <div class="mini-bars" id="weekly-bars"></div>
+      </div>
+    </div>
+
+    <!-- Quick start -->
+    <div class="dash-quickstart">
+      <div class="fg-chip" style="width:100%;justify-content:space-between;height:62px" id="duration-chip-btn">
+        <span style="display:flex;align-items:center;gap:10px">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>
+          <span style="font-weight:500">Focus <b class="fg-num" id="dial-chip-label">25:00</b></span>
         </span>
-      </button>
-    </div>
-
-    <div class="dash-start">
-      <button id="btn-start-focus" class="fg-btn">Start Focus</button>
-    </div>
-
-    <!-- Hidden elements preserved for JS compatibility -->
-    <div aria-hidden="true" style="display:none;">
-      <button class="duration-btn" data-duration="25">25</button>
-      <button class="duration-btn" data-duration="45">45</button>
-      <button class="duration-btn" data-duration="60">60</button>
-      <input type="number" id="duration-custom" min="5" max="180">
-      <button id="btn-lang"></button>
-      <div id="rewards-preview-list"></div>
-      <p id="no-rewards-hint"></p>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ink-mute)" stroke-width="2.2" stroke-linecap="round"><path d="m9 5 7 7-7 7"/></svg>
+      </div>
+      <button class="fg-btn" style="margin-top:12px" id="btn-start-focus">Start Focus</button>
     </div>
   </section>
 
   <!-- ===================== FOCUS MODE ===================== -->
   <section id="screen-focus" class="screen">
-    <div class="focus-top">
-      <div class="seg" id="focus-mode-seg">
+    <div class="focus-seg">
+      <div class="fg-seg" id="focus-mode-seg">
         <span class="on" data-mode="countdown">Countdown</span>
         <span data-mode="countup">Count up</span>
       </div>
-      <div class="focus-time-display">
-        <div class="focus-timer-val fg-num" id="timer-value">00:00</div>
-        <div class="focus-timer-sub" id="session-target-value">of 25:00</div>
+    </div>
+
+    <div class="focus-center">
+      <div id="tree-container" class="tree-container">
+        <div id="tree-loading" class="tree-loading"><div class="loader"></div><span>Loading tree…</span></div>
+      </div>
+      <div class="focus-time">
+        <div class="fg-num time-big" id="timer-value">00:00</div>
+        <div class="time-sub" id="focus-caption">0 minutes to bloom</div>
       </div>
     </div>
 
-    <div id="tree-container" class="tree-container">
-      <div id="tree-loading" class="tree-loading">
-        <div class="loader"></div>
-        <span>Loading tree…</span>
-      </div>
-    </div>
-
-    <div class="focus-footer">
-      <div class="earning-card fg-card">
-        <span class="earning-label">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="coin-icon accent"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 9.2c.7-.8 4.8-1.1 4.8 1s-4.4 1.4-4.8 2.5 4 1.6 4.8.8"/></svg>
-          Earning this session
+    <button class="focus-ambient" id="btn-ambient" style="border:none">
+      <span style="display:flex;align-items:center;gap:12px">
+        <span class="amb-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20c0-9 7-15 16-15 0 10-6 15-16 15Z"/><path d="M4 20C8 14 12 11 18 9"/></svg>
         </span>
-        <span class="fg-num accent earning-val" id="earning-display">+25 min</span>
-      </div>
-      <div class="focus-progress">
-        <div class="progress-labels">
-          <span>0%</span>
-          <span class="fg-num" id="focus-progress-text" style="font-weight:600;color:var(--ink);">0%</span>
-          <span>100%</span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill" id="focus-progress-fill"></div>
-        </div>
-      </div>
-      <div class="focus-btns">
-        <button id="btn-end-focus" class="fg-btn fg-btn--ghost">End early</button>
-        <button id="btn-pause-focus" class="fg-btn">Pause</button>
-      </div>
-    </div>
+        <span style="text-align:left">
+          <span style="display:block;font-size:16px;font-weight:600">Deep Work</span>
+          <span style="display:block;font-size:12.5px;color:var(--ink-mute);margin-top:1px">Ambient · Coming soon</span>
+        </span>
+      </span>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ink-mute)" stroke-width="2.2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
 
-    <!-- Hidden legacy elements -->
-    <div aria-hidden="true" style="display:none;">
-      <button id="btn-timer-mode"><span id="timer-mode-icon">↓</span></button>
+    <!-- Hidden compat elements -->
+    <div style="display:none">
+      <span id="session-target-value"></span>
+      <span id="earning-display"></span>
+      <div id="focus-progress-fill"></div>
+      <span id="focus-progress-text"></span>
+      <button id="btn-end-focus"></button>
+      <button id="btn-pause-focus"></button>
+      <button id="btn-timer-mode"><span id="timer-mode-icon"></span></button>
     </div>
   </section>
 
-  <!-- ===================== REWARDS ===================== -->
+  <!-- ===================== REWARDS — Catalog ===================== -->
   <section id="screen-rewards" class="screen">
     <div class="rewards-header">
-      <div class="fg-h1">Rewards</div>
-      <div class="balance-pill">
-        <span class="accent">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 9.2c.7-.8 4.8-1.1 4.8 1s-4.4 1.4-4.8 2.5 4 1.6 4.8.8"/></svg>
-        </span>
-        <span class="fg-num" id="rewards-balance">0</span>
-        <span class="balance-unit">min</span>
+      <div>
+        <div class="fg-h1" style="font-size:34px">Rewards</div>
+        <div class="rewards-subtitle"><b class="fg-num" style="color:var(--ink)" id="rewards-balance">0</b> min available</div>
       </div>
+      <button class="btn-new-reward" id="btn-add-reward">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New
+      </button>
     </div>
-
     <div id="rewards-list" class="rewards-grid"></div>
-
-    <div class="history-section">
-      <div class="section-label">Recently claimed</div>
-      <div class="fg-card history-card" id="rewards-history-card" style="padding:4px;">
-        <div id="rewards-history"></div>
-      </div>
-      <p class="empty-hint" id="no-history-hint">History is empty</p>
-    </div>
-
-    <button class="rewards-fab" id="btn-add-reward">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
+    <div class="mt-auto"></div>
   </section>
 
-  <!-- ===================== SETTINGS ===================== -->
+  <!-- ===================== SETTINGS — Grouped List ===================== -->
   <section id="screen-settings" class="screen">
-    <div class="settings-title fg-h1">Settings</div>
+    <div class="fg-h1" style="font-size:30px;margin-top:8px">Settings</div>
 
-    <div class="fg-card settings-profile">
-      <div class="avatar-btn">
-        <div class="avatar-face"></div>
-      </div>
-      <div>
-        <div class="profile-name">FocusGrove</div>
-        <div class="profile-sub" id="settings-streak-line">Focused 0 days in a row</div>
-      </div>
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="color:var(--ink-faint);margin-left:auto;"><path d="m9 5 7 7-7 7"/></svg>
+    <!-- Profile -->
+    <div class="fg-card" style="margin-top:18px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+      <div class="fg-avatar" style="width:52px;height:52px"><div class="fg-avatar-inner">
+        <svg width="70%" height="70%" viewBox="0 0 40 40"><circle cx="20" cy="15" r="7" fill="rgba(255,255,255,.92)"/><path d="M6 40c2-9 8-12 14-12s12 3 14 12z" fill="rgba(255,255,255,.92)"/></svg>
+      </div></div>
+      <div style="flex:1"><div style="font-size:17px;font-weight:600" id="settings-name">User</div><div style="font-size:13px;color:var(--ink-mute)" id="settings-streak-line">Focused 0 days in a row</div></div>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ink-faint)" stroke-width="2.2" stroke-linecap="round"><path d="m9 5 7 7-7 7"/></svg>
     </div>
 
     <div class="glabel">Session</div>
-    <div class="fg-card settings-group">
+    <div class="fg-card" style="padding:0">
       <div class="srow">
-        <div class="srow-ic">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>
-        </div>
+        <div class="srow-ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg></div>
         <div class="srow-nm">Default duration</div>
-        <select id="setting-duration" class="srow-select">
-          <option value="25">25 min</option>
-          <option value="45">45 min</option>
-          <option value="60">60 min</option>
-          <option value="90">90 min</option>
-          <option value="120">120 min</option>
+        <select id="setting-duration" style="background:transparent;border:none;font:600 14px 'Space Grotesk';color:var(--ink-soft);cursor:pointer;outline:none;padding:4px 8px;background:var(--card-2);border-radius:var(--r-sm)">
+          <option value="25">25 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="90">90 min</option>
         </select>
       </div>
       <div class="srow">
-        <div class="srow-ic">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg>
-        </div>
+        <div class="srow-ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg></div>
         <div class="srow-nm">Default timer mode</div>
-        <div class="seg" id="toggle-timer-mode">
-          <span class="toggle-btn active" data-mode="countdown">Countdown</span>
-          <span class="toggle-btn" data-mode="countup">Count up</span>
+        <div class="fg-seg" id="toggle-timer-mode" style="transform:scale(.85)">
+          <button class="active" data-mode="countdown">Down</button>
+          <button data-mode="countup">Up</button>
         </div>
       </div>
     </div>
 
     <div class="glabel">Preferences</div>
-    <div class="fg-card settings-group">
+    <div class="fg-card" style="padding:0">
       <div class="srow">
-        <div class="srow-ic" style="font-size:15px;">🌐</div>
+        <div class="srow-ic" style="font-size:15px">🌐</div>
         <div class="srow-nm">Language</div>
-        <div class="seg" id="toggle-language">
-          <span class="toggle-btn" data-lang="ru">RU</span>
-          <span class="toggle-btn active" data-lang="en">EN</span>
+        <div class="fg-seg" id="toggle-language" style="transform:scale(.85)">
+          <button data-lang="en" class="active">EN</button>
+          <button data-lang="ru">RU</button>
         </div>
       </div>
       <div class="srow">
-        <div class="srow-ic">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
-        </div>
+        <div class="srow-ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
         <div class="srow-nm">Strict mode</div>
-        <div class="toggle-pill on" id="strict-toggle"><b></b></div>
+        <div class="fg-toggle on" id="strict-toggle"><b></b></div>
       </div>
     </div>
 
     <div class="glabel">Danger zone</div>
-    <div class="fg-card settings-group">
-      <div class="srow danger-row" id="btn-reset-data" style="cursor:pointer;">
-        <div class="srow-ic" style="background:rgba(229,72,77,.1);color:var(--danger);">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        </div>
-        <div class="srow-nm" style="color:var(--danger);">Wipe all data</div>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="color:var(--ink-faint);"><path d="m9 5 7 7-7 7"/></svg>
+    <div class="fg-card" style="padding:0">
+      <div class="srow" id="btn-reset-data" style="cursor:pointer">
+        <div class="srow-ic" style="background:rgba(229,72,77,.1);color:var(--danger)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
+        <div class="srow-nm" style="color:var(--danger)">Wipe all data</div>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ink-faint)" stroke-width="2.2" stroke-linecap="round"><path d="m9 5 7 7-7 7"/></svg>
       </div>
     </div>
-
-    <!-- Hidden for JS compatibility -->
-    <div aria-hidden="true" style="display:none;"><button id="btn-lang"></button></div>
   </section>
 
-</div><!-- #app -->
+</div>
 
 <!-- FLOATING NAV -->
 <nav id="bottom-nav">
@@ -244,99 +214,106 @@
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 9.5V20h14V9.5"/></svg>
   </button>
   <button class="nav-btn" data-screen="focus">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg>
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg>
   </button>
   <button class="nav-btn" data-screen="rewards">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 7.5h18V11H3zM12 7.5V20"/></svg>
   </button>
   <button class="nav-btn" data-screen="settings">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.4M12 19.1v2.4M21.5 12h-2.4M4.9 12H2.5M18.7 5.3l-1.7 1.7M7 17l-1.7 1.7M18.7 18.7 17 17M7 7 5.3 5.3"/></svg>
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.4M12 19.1v2.4M21.5 12h-2.4M4.9 12H2.5M18.7 5.3l-1.7 1.7M7 17l-1.7 1.7M18.7 18.7 17 17M7 7 5.3 5.3"/></svg>
   </button>
 </nav>
 
 <!-- ===================== MODALS ===================== -->
 
-<div id="modal-warning" class="modal-overlay">
+<!-- Session Complete -->
+<div id="modal-complete" class="modal-overlay">
   <div class="modal-card">
-    <div class="modal-icon">⚠️</div>
-    <h2>Attention!</h2>
-    <p>You minimized the app. Next time, session progress will reset.</p>
-    <button class="fg-btn modal-btn" id="btn-warning-ok">Got it, continue</button>
+    <div class="modal-medallion accent">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>
+    </div>
+    <h2>Session complete</h2>
+    <p id="complete-text">Beautiful focus. You grew your grove and banked new minutes.</p>
+    <div class="earned-pill">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 9.2c.7-.8 4.8-1.1 4.8 1s-4.4 1.4-4.8 2.5 4 1.6 4.8.8"/></svg>
+      <span class="fg-num accent" style="font-size:22px" id="complete-minutes">+0 min</span>
+    </div>
+    <button class="fg-btn" style="margin-top:18px" id="btn-complete-ok">Done</button>
   </div>
 </div>
 
+<!-- Warning -->
+<div id="modal-warning" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-medallion danger">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#e5484d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".4" fill="#e5484d" stroke="none"/><path d="M10.3 3.9 2.4 18a1.6 1.6 0 0 0 1.4 2.4h16.4a1.6 1.6 0 0 0 1.4-2.4L13.7 3.9a1.6 1.6 0 0 0-2.8 0Z"/></svg>
+    </div>
+    <h2>You left the app</h2>
+    <p>Don't do it again — one more time and this session resets.</p>
+    <button class="fg-btn" style="margin-top:22px" id="btn-warning-ok">Back to focus</button>
+  </div>
+</div>
+
+<!-- Reset -->
 <div id="modal-reset" class="modal-overlay">
   <div class="modal-card">
     <div class="modal-icon">💔</div>
     <h2>Focus broken</h2>
     <p>Session progress was reset. Try again — you've got this!</p>
-    <button class="fg-btn modal-btn" id="btn-reset-ok">Try again</button>
+    <button class="fg-btn" style="margin-top:18px" id="btn-reset-ok">Try again</button>
   </div>
 </div>
 
+<!-- Celebration -->
+<div id="modal-celebration" class="modal-overlay">
+  <div class="modal-card" style="position:relative;overflow:hidden">
+    <div class="confetti-container" id="confetti"></div>
+    <div style="font-size:56px;margin-bottom:6px" id="celebration-emoji">🎮</div>
+    <h2>Reward claimed!</h2>
+    <p id="celebration-text"></p>
+    <div style="font-size:13px;color:var(--ink-mute);margin-top:16px">New balance</div>
+    <div class="fg-num" style="font-size:28px;margin-top:2px" id="celebration-balance">0 <span style="font-size:15px;color:var(--ink-mute)">min</span></div>
+    <button class="fg-btn" style="margin-top:20px" id="btn-celebration-ok">Nice</button>
+  </div>
+</div>
+
+<!-- Add Reward -->
 <div id="modal-reward" class="modal-overlay">
   <div class="modal-card modal-form">
-    <h2 id="modal-reward-title">New reward</h2>
-    <div class="form-group">
-      <label>Icon</label>
-      <div class="emoji-picker">
-        <button class="emoji-btn active" data-emoji="🎬">🎬</button>
-        <button class="emoji-btn" data-emoji="📱">📱</button>
-        <button class="emoji-btn" data-emoji="🍕">🍕</button>
-        <button class="emoji-btn" data-emoji="🎮">🎮</button>
-        <button class="emoji-btn" data-emoji="🛍️">🛍️</button>
-        <button class="emoji-btn" data-emoji="☕">☕</button>
-        <button class="emoji-btn" data-emoji="🎵">🎵</button>
-        <button class="emoji-btn" data-emoji="🏖️">🏖️</button>
-      </div>
+    <h2 id="modal-reward-title" style="text-align:center">New reward</h2>
+    <div class="emoji-preview" id="emoji-preview">🎁</div>
+    <div class="emoji-picker">
+      <button class="emoji-btn active" data-emoji="☕">☕</button>
+      <button class="emoji-btn" data-emoji="🎮">🎮</button>
+      <button class="emoji-btn" data-emoji="🍿">🍿</button>
+      <button class="emoji-btn" data-emoji="🛍️">🛍️</button>
+      <button class="emoji-btn" data-emoji="🌴">🌴</button>
+      <button class="emoji-btn" data-emoji="📚">📚</button>
     </div>
     <div class="form-group">
-      <label for="reward-name">Name</label>
-      <input type="text" id="reward-name" placeholder="Coffee break" maxlength="50">
+      <label>Name</label>
+      <input class="input-field" type="text" id="reward-name" placeholder="Game hour" maxlength="50">
     </div>
     <div class="form-group">
-      <label for="reward-cost">Cost (focus minutes)</label>
-      <input type="number" id="reward-cost" placeholder="60" min="1" max="99999">
+      <label>Cost (minutes)</label>
+      <input class="input-field" type="number" id="reward-cost" placeholder="240" min="1" max="99999">
     </div>
     <div class="modal-actions">
       <button class="fg-btn fg-btn--ghost" id="btn-reward-cancel">Cancel</button>
-      <button class="fg-btn" id="btn-reward-save">Save</button>
+      <button class="fg-btn fg-btn--accent" id="btn-reward-save">Add</button>
     </div>
   </div>
 </div>
 
-<div id="modal-celebration" class="modal-overlay">
-  <div class="modal-card">
-    <div class="confetti-container" id="confetti"></div>
-    <div class="modal-icon">🎉</div>
-    <h2>Congratulations!</h2>
-    <p id="celebration-text"></p>
-    <button class="fg-btn modal-btn" id="btn-celebration-ok">Awesome!</button>
-  </div>
-</div>
-
+<!-- Confirm Delete -->
 <div id="modal-confirm" class="modal-overlay">
   <div class="modal-card">
-    <div class="modal-icon">🗑</div>
-    <h2 id="confirm-title">Confirm</h2>
-    <p id="confirm-text">Are you sure? This action cannot be undone.</p>
+    <h2 id="confirm-title">Delete this reward?</h2>
+    <p id="confirm-text">This can't be undone.</p>
     <div class="modal-actions">
-      <button class="fg-btn fg-btn--ghost" id="btn-confirm-cancel">Cancel</button>
+      <button class="fg-btn fg-btn--ghost" id="btn-confirm-cancel">Keep</button>
       <button class="fg-btn fg-btn--danger" id="btn-confirm-ok">Delete</button>
     </div>
-  </div>
-</div>
-
-<div id="modal-complete" class="modal-overlay">
-  <div class="modal-card">
-    <div class="modal-icon">🌳</div>
-    <h2>Session complete!</h2>
-    <p id="complete-text"></p>
-    <div class="complete-stat">
-      <span class="fg-num" id="complete-minutes" style="font-size:40px;font-weight:700;color:var(--accent);">0</span>
-      <span style="color:var(--ink-mute);font-size:15px;">minutes earned</span>
-    </div>
-    <button class="fg-btn modal-btn" id="btn-complete-ok">Great!</button>
   </div>
 </div>
 
